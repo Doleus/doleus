@@ -57,13 +57,13 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
 
         self.label_to_name = label_to_name
         self.task = task
-        if metadata is None:
-            self.metadata = {}
+        self.metadata = metadata if metadata is not None else {}
         self.metadata["_timestamp"] = get_current_timestamp()
         self.description = description
         self.locators = locators
         self.datapoints = []
         self.datapoints_metadata = datapoints_metadata
+        self.predictions = None
 
         if self.locators:
             if not isinstance(self.locators, list):
@@ -110,7 +110,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
                     image, label = transformed_data
                 except ValueError as e:
                     raise ValueError(
-                        f"Dataset output_transform should return two elements (image, label): {e}"
+                        f"Dataset output_transform should return two elements (image, label): {
+                            e}"
                     )
                 groundtruth = Labels(datapoint_number=index, labels=label)
             elif self.task == Task.DETECTION.value:
@@ -118,14 +119,16 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
                     image, bounding_boxes, labels = transformed_data
                 except ValueError as e:
                     raise ValueError(
-                        f"Dataset output_transform should return three elements (image, bounding_boxes, labels): {e}"
+                        f"Dataset output_transform should return three elements (image, bounding_boxes, labels): {
+                            e}"
                     )
                 groundtruth = BoundingBoxes(
                     datapoint_id=index, boxes_xyxy=bounding_boxes, labels=labels
                 )
             else:
                 raise ValueError(
-                    f"Unsupported task: {self.task} - Select either 'classification' or 'detection'"
+                    f"Unsupported task: {
+                        self.task} - Select either 'classification' or 'detection'"
                 )
 
             self.groundtruths.add(groundtruth)
@@ -167,7 +170,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
                     "dataset_name": self.name,
                     "datapoint_number": groundtruth.datapoint_number,
                     "boxes": (
-                        [convert_to_list(boxes) for boxes in groundtruth.boxes_xyxy]
+                        [convert_to_list(boxes)
+                         for boxes in groundtruth.boxes_xyxy]
                         if hasattr(groundtruth, "boxes_xyxy")
                         else None
                     ),
@@ -190,7 +194,6 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
         root_dataset = find_root_dataset(self.dataset)
         transform = root_dataset.transform
         root_dataset.transform = None
-        # TODO Check if this works for slices as well (or do we need to use root_dataset)
         for i in tqdm(range(len(self.dataset)), desc="Adding metadata"):
             data = self.dataset[i]
             image = data[0]
@@ -215,7 +218,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
             image = (image * 255).astype(np.uint8) if image.max() <= 1.0 else image
 
             if predefined_metadata_key not in self.datapoints[i].metadata:
-                metadata_value = ATTRIBUTE_FUNCTIONS[predefined_metadata_key](image)
+                metadata_value = ATTRIBUTE_FUNCTIONS[predefined_metadata_key](
+                    image)
                 self.datapoints[i].add_metadata(
                     key=predefined_metadata_key, value=metadata_value
                 )
@@ -249,7 +253,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
 
         if class_id is None:
             raise ValueError(
-                f"Class name '{class_name}' not found in label_to_name mapping."
+                f"Class name '{
+                    class_name}' not found in label_to_name mapping."
             )
 
         for i, datapoint in enumerate(tqdm(self.datapoints, desc=f"Adding metadata")):
@@ -303,7 +308,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
 
             if metadata_key not in self.datapoints[i].metadata:
                 metadata_value = metadata_func(image)
-                self.datapoints[i].add_metadata(key=metadata_key, value=metadata_value)
+                self.datapoints[i].add_metadata(
+                    key=metadata_key, value=metadata_value)
 
         root_dataset.transform = transform
         self.store(overwrite=True)
@@ -317,7 +323,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
             "==": "eq",
             "class": "cl",
         }
-        filename = f"{self.name}_{metadata_key}_{abbreviations[operator_str]}_{str(value).replace('.', '_')}"
+        filename = f"{self.name}_{metadata_key}_{
+            abbreviations[operator_str]}_{str(value).replace('.', '_')}"
         return filename
 
     def slice_by_threshold(
@@ -344,7 +351,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
         ]
 
         if slice_name is None:
-            slice_name = self._generate_filename(metadata_key, operator_str, threshold)
+            slice_name = self._generate_filename(
+                metadata_key, operator_str, threshold)
 
         return Slice(self, slice_name, indices, self)
 
@@ -364,7 +372,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
         :param slice_name: name of the slice to create
         """
         op_func = OPERATOR_DICT[operator_str]
-        values = [datapoint.get_metadata(metadata_key) for datapoint in self.datapoints]
+        values = [datapoint.get_metadata(metadata_key)
+                  for datapoint in self.datapoints]
         threshold = np.percentile(values, percentile)
 
         indices = [
@@ -374,7 +383,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
         ]
 
         if slice_name is None:
-            slice_name = self._generate_filename(metadata_key, operator_str, percentile)
+            slice_name = self._generate_filename(
+                metadata_key, operator_str, percentile)
 
         return Slice(self, slice_name, indices, self)
 
@@ -443,7 +453,6 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         )  # needs to be here before initialization of MwObject
         MoonwatcherObject.__init__(self, name=name, datatype=DataType.SLICE)
 
-        # self.dataset_transform = moonwatcher_dataset.dataset_transform
         self.task = moonwatcher_dataset.task
         self.output_transform = moonwatcher_dataset.output_transform
         self.metadata = moonwatcher_dataset.metadata
@@ -451,6 +460,7 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         self.datapoints = moonwatcher_dataset.datapoints
         self.datapoints_metadata = moonwatcher_dataset.datapoints_metadata
         self.groundtruths = moonwatcher_dataset.groundtruths
+        self.predictions = moonwatcher_dataset.predictions
 
         self.description = description
         self.indices = indices
@@ -459,11 +469,9 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         self.original_dataset = original_dataset
 
         self.datapoints = [self.datapoints[i] for i in self.indices]
-        # self.groundtruths = [self.groundtruths[i] for i in self.indices]
         self.locators = (
             [self.locators[i] for i in self.indices] if self.locators else None
         )
-        # save_groundtruths(self, self.groundtruths)
         self.store()
         self.upload_if_not()
 
@@ -494,7 +502,8 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         ]
 
         if slice_name is None:
-            slice_name = self._generate_filename(metadata_key, operator_str, threshold)
+            slice_name = self._generate_filename(
+                metadata_key, operator_str, threshold)
 
         return Slice(self, slice_name, indices, self.original_dataset)
 
@@ -506,7 +515,8 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         slice_name: str = None,
     ):
         op_func = OPERATOR_DICT[operator_str]
-        values = [datapoint.get_metadata(metadata_key) for datapoint in self.datapoints]
+        values = [datapoint.get_metadata(metadata_key)
+                  for datapoint in self.datapoints]
         threshold = np.percentile(values, percentile)
 
         indices = [
@@ -516,7 +526,8 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         ]
 
         if slice_name is None:
-            slice_name = self._generate_filename(metadata_key, operator_str, percentile)
+            slice_name = self._generate_filename(
+                metadata_key, operator_str, percentile)
 
         return Slice(self, slice_name, indices, self.original_dataset)
 

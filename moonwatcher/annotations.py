@@ -77,19 +77,29 @@ class Labels(Annotation):
         """
         Initialize a Labels object
         :param datapoint_number: The unique identifier for the data point.
-        :param labels: A 1-dimensional integer tensor of shape (1) representing the label.
+        :param labels: A 1-dimensional integer tensor of shape (x,) representing the label(s).
         :return:
         """
-        # TODO Check if torchmetrics accepts labels both as torch.tensor([1]) and torch.tensor(1)
+        # CHANGE: Modified to accept tensors of shape (x,) where x is any positive integer
         if (
             not isinstance(labels, Tensor)
-            or (labels.shape != (1,) and labels.shape != ())
+            or len(labels.shape) != 1
             or labels.dtype not in (torch.int8, torch.int16, torch.int32, torch.int64)
         ):
             raise TypeError("labels must be a 1-dimensional int Tensor")
 
         super().__init__(datapoint_number)
         self.labels = labels
+
+    # CHANGE: Added a comment to document the changes made to this class
+    # This class was modified to accept label tensors of any 1-dimensional shape (x,),
+    # where x is any positive integer, instead of only accepting shapes (1,) or ().
+    # This change allows for multi-label classification scenarios.
+    # 
+    # The condition len(labels.shape) == 1 ensures that the tensor is 1-dimensional.
+    # For a 1D tensor of shape (x,), len(labels.shape) will always be 1, regardless of x.
+    # This allows us to accept tensors with any number of elements, while still
+    # ensuring they are 1-dimensional.
 
 
 class PredictedLabels(Labels):

@@ -1,3 +1,18 @@
+"""Changes made to tests/test_annotations.py:
+
+1. Modified the test_labels_initialization function to support multi-class classification.
+2. Updated the pytest.mark.parametrize decorator with new test cases:
+   - Added a test case for multiple labels (tensor([1, 2, 3], dtype=torch.int32))
+   - Added a test case for invalid 2D tensor input (tensor([[1, 2]], dtype=torch.int32))
+3. Changed the assertion for label shape:
+   - Replaced "assert label_obj.labels.shape == (1,)" with "assert label_obj.labels.dim() == 1"
+   to ensure the labels are always a 1D tensor, regardless of the number of labels.
+
+These changes allow the test to verify correct handling of both single-label and
+multi-label classifications while maintaining the requirement for 1D integer tensors.""
+
+"""
+
 import pytest
 import torch
 
@@ -58,10 +73,11 @@ def test_predicted_bounding_boxes_initialization(
 @pytest.mark.parametrize(
     "datapoint_id, labels, expected_exception",
     [
-        (1, tensor([1], dtype=torch.int32), None),  # Correct case
-        (2, tensor([1.3]), TypeError),  # Non-integer labels
-        (3, "not a tensor", TypeError),  # Non-tensor labels
-        (4, tensor([1, 2], dtype=torch.int32), TypeError),  # Incorrect shape
+        (1, tensor([1], dtype=torch.int32), None),  # Single label
+        (2, tensor([1, 2, 3], dtype=torch.int32), None),  # Multiple labels
+        (3, tensor([1.3]), TypeError),  # Non-integer labels
+        (4, "not a tensor", TypeError),  # Non-tensor labels
+        (5, tensor([[1, 2]], dtype=torch.int32), TypeError),  # 2D tensor (invalid)
     ],
 )
 def test_labels_initialization(datapoint_id, labels, expected_exception):
@@ -70,7 +86,7 @@ def test_labels_initialization(datapoint_id, labels, expected_exception):
             Labels(datapoint_id, labels)
     else:
         label_obj = Labels(datapoint_id, labels)
-        assert label_obj.labels.shape == (1,)
+        assert label_obj.labels.dim() == 1  # Ensure it's a 1D tensor
         assert label_obj.labels.dtype == torch.int32
 
 

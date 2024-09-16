@@ -5,7 +5,6 @@ from typing import Optional, List, Union, Dict, Any
 from moonwatcher.utils.data import OPERATOR_DICT
 from moonwatcher.dataset.dataset import MoonwatcherDataset, Slice
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
-from moonwatcher.model.model import MoonwatcherModel
 from moonwatcher.metric import calculate_metric
 from moonwatcher.utils.helpers import get_current_timestamp
 from moonwatcher.utils.api_connector import upload_if_possible
@@ -55,10 +54,7 @@ class Check(MoonwatcherObject):
         self.store()
 
     def _upload(self):
-        if self.metric_parameters is not None:
-            metric_dict = {k: self.metric_parameters[k] for k in self.metric_parameters}
-        else:
-            metric_dict = {}
+        metric_dict = self.metric_parameters if self.metric_parameters is not None else {}
         metric_dict["name"] = self.metric
 
         data = {
@@ -84,10 +80,9 @@ class Check(MoonwatcherObject):
         return upload_if_possible(datatype=DataType.CHECK.value, data=data)
 
     def __call__(
-        self, model: MoonwatcherModel, show=False, save_report=False
+        self, show=False, save_report=False
     ) -> Dict[str, Any]:
         result = calculate_metric(
-            model=model,
             dataset_or_slice=self.dataset_or_slice,
             metric=self.metric,
             metric_parameters=self.metric_parameters,
@@ -105,7 +100,6 @@ class Check(MoonwatcherObject):
                 if isinstance(self.dataset_or_slice, Slice)
                 else None
             ),
-            "model_name": model.name,
             "metric": self.metric,
             "operator": self.operator_str,
             "value": self.value,
@@ -125,14 +119,13 @@ class Check(MoonwatcherObject):
 
         if save_report:
             with open(
-                f"check_{self.name}_report_for_{model.name}.json", "w", encoding="utf-8"
+                f"check_{self.name}_report.json", "w", encoding="utf-8"
             ) as f:
                 json.dump(obj=report, fp=f, indent=4)
         return report
 
     def _upload_report(self, report):
         data = {
-            "model_name": report["model_name"],
             "check_name": self.name,
             "timestamp": get_current_timestamp(),
             "result": report["result"],
@@ -163,11 +156,7 @@ class CheckSuite(MoonwatcherObject):
         self.description = description
         self.metadata = metadata
         self.checks = checks
-        self.testing = False
-        for check in self.checks:
-            if check.testing:
-                self.testing = True
-                break
+        self.testing = any(check.testing for check in self.checks)
         self.show = show
         self.store()
 
@@ -182,24 +171,19 @@ class CheckSuite(MoonwatcherObject):
         }
         return upload_if_possible(datatype=DataType.CHECKSUITE.value, data=data)
 
-    def __call__(self, model: MoonwatcherModel, show=None, save_report=False):
-        total_success = None
-        if self.testing:
-            total_success = True
+    def __call__(self, show=None, save_report=False):
+        total_success = all(check.testing and check()[
+                            "success"] for check in self.checks)
 
         reports = []
 
         show = self.show if show is None else show
         for check in self.checks:
-            report = check(model)
+            report = check(show=False, save_report=False)
             reports.append(report)
-            if check.testing:
-                if not report["success"]:
-                    total_success = False
 
         checksuite_report = {
             "checksuite_name": self.name,
-            "model_name": model.name,
             "timestamp": get_current_timestamp(),
             "success": total_success,
             "checks": reports,
@@ -211,7 +195,7 @@ class CheckSuite(MoonwatcherObject):
         self._upload_report(report=checksuite_report)
         if save_report:
             with open(
-                f"checksuite_{self.name}_report_for_{model.name}.json",
+                f"checksuite_{self.name}_report.json",
                 "w",
                 encoding="utf-8",
             ) as f:
@@ -221,7 +205,6 @@ class CheckSuite(MoonwatcherObject):
 
     def _upload_report(self, report):
         data = {
-            "model_name": report["model_name"],
             "checksuite_name": self.name,
             "timestamp": get_current_timestamp(),
             "passed": report["success"],
@@ -273,7 +256,8 @@ class ReportVisualizer:
 
                 operator = f"{operator}".center(3)
                 comparison = f"{operator} {value}"
-                result = f"{self.GREEN if report['success'] else self.RED}{report_result}{self.END}"
+                result = f"{self.GREEN if report['success'] else self.RED}{
+                    report_result}{self.END}"
             else:
                 comparison = f""
                 result = f" {report_result}"
@@ -283,7 +267,8 @@ class ReportVisualizer:
                 printed_set = report["slice_name"]
 
             appendix = f"   ({report['metric']} on {printed_set})"
-            print_statement = f"{test_output_str.ljust(40)} {self.BOLD}{result}{self.END} {comparison}{appendix}"
+            print_statement = f"{test_output_str.ljust(40)} {self.BOLD}{result}{
+                self.END} {comparison}{appendix}"
             print(print_statement)
 
 
@@ -294,7 +279,6 @@ def visualize_report(report):
 
 def automated_checking(
     mw_dataset: MoonwatcherDataset,
-    mw_model: MoonwatcherModel,
     metadata_keys: List[str] = None,
     metadata_list: List[Dict[str, Any]] = None,
     slicing_conditions: List[Dict[str, Any]] = None,
@@ -369,8 +353,9 @@ def automated_checking(
             check_objects.append(new_check)
 
         # Run Checks
-        check_suite = CheckSuite(name=f"Test_{mw_slice.name}", checks=check_objects)
-        test_results = check_suite(model=mw_model, show=True)
+        check_suite = CheckSuite(
+            name=f"Test_{mw_slice.name}", checks=check_objects)
+        test_results = check_suite(show=True)
         all_test_results[mw_slice.name] = test_results
 
     # Create and run checks for the entire dataset
@@ -390,7 +375,7 @@ def automated_checking(
     entire_dataset_check_suite = CheckSuite(
         name=f"Test_{mw_dataset.name}", checks=check_objects
     )
-    entire_dataset_test_results = entire_dataset_check_suite(model=mw_model, show=True)
+    entire_dataset_test_results = entire_dataset_check_suite(show=True)
     all_test_results[mw_dataset.name] = entire_dataset_test_results
 
     return all_test_results

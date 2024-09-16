@@ -38,6 +38,8 @@ python-dotenv = "^1.0.1"
 pycocotools = "^2.0.7"
 gdown = "^5.1.0"
 pytest = "^8.1.1"
+pydicom = "^2.4.4"
+jupyter = "^1.1.1"
 
 [build-system]
 requires = ["poetry-core"]
