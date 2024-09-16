@@ -1,21 +1,14 @@
-venv
 .DS_Store
 local_*
 
 *.pyc
 __pycache__/
 
-data/observations/
-
 .idea/
 *.env
-data
-!data/assets
 dist
-moonwatcher.egg-info
-moonwatcher/coco/*
-moonwatcher/coco
-observations/
-coco/
-stl10_binary.tar.gz
-stl10_binary
+tiny-imagenet-200/
+
+*.pth
+*.ipynb
+*.json
