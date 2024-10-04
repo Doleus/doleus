@@ -4,13 +4,16 @@ from typing import Optional, List, Union, Dict, Any
 
 from moonwatcher.utils.data import OPERATOR_DICT
 from moonwatcher.dataset.dataset import MoonwatcherDataset, Slice
+from moonwatcher.model.model import MoonwatcherModel
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.metric import calculate_metric
 from moonwatcher.utils.helpers import get_current_timestamp
 from moonwatcher.utils.api_connector import upload_if_possible
 from moonwatcher.utils.data import DataType
 from moonwatcher.base.base import MoonwatcherObject
-from moonwatcher.utils.data import Task
+from moonwatcher.utils.data import Task, TaskType
+
+# CHANGE: Added model to the Check object
 
 
 class Check(MoonwatcherObject):
@@ -18,6 +21,7 @@ class Check(MoonwatcherObject):
         self,
         name: str,
         dataset_or_slice: Union[MoonwatcherDataset, Slice],
+        model: MoonwatcherModel,
         metric: str,
         metric_parameters: Optional[Dict] = None,
         metric_class: str = None,
@@ -31,6 +35,7 @@ class Check(MoonwatcherObject):
 
         :param name: the name you want to give this check
         :param dataset_or_slice: the dataset or slice to use
+        :param model: the model to use
         :param metric: the metric to apply (torchmetric)
         :param metric_parameters: optional parameters for the metrics
         :param description: optional description of the check
@@ -51,6 +56,7 @@ class Check(MoonwatcherObject):
         self.metric = metric
         self.metric_parameters = metric_parameters
         self.metric_class = metric_class
+        self.model = model
         self.store()
 
     def _upload(self):
@@ -82,11 +88,13 @@ class Check(MoonwatcherObject):
     def __call__(
         self, show=False, save_report=False
     ) -> Dict[str, Any]:
+        # CHANGE: Passing model as parameter to calculate_metric
         result = calculate_metric(
             dataset_or_slice=self.dataset_or_slice,
             metric=self.metric,
             metric_parameters=self.metric_parameters,
             metric_class=self.metric_class,
+            model=self.model
         )
         report = {
             "check_name": self.name,
@@ -287,12 +295,12 @@ def automated_checking(
 ):
     # Load demo configurations if specified
     if demo:
-        if mw_dataset.task == Task.CLASSIFICATION.value:
+        if mw_dataset.task_type == TaskType.CLASSIFICATION.value:
             filename = "demo_classification.json"
-        elif mw_dataset.task == Task.DETECTION.value:
+        elif mw_dataset.task_type == TaskType.DETECTION.value:
             filename = "demo_detection.json"
         else:
-            raise ValueError(f"Unsupported task: {mw_dataset.task}")
+            raise ValueError(f"Unsupported task type: {mw_dataset.task_type}")
 
         cur_filepath = Path(__file__)
         with open(

@@ -36,7 +36,7 @@ def basic_moonwatcher_dataset(simple_dataset):
     return MoonwatcherDataset(
         dataset=simple_dataset,
         name=unique_name,
-        task="classification",
+        task_type="classification",
         output_transform=output_transform,
         label_to_name={i: f"class_{i}" for i in range(10)},
         locators=["http://fakeurl.com/image_{}".format(i) for i in range(100)],
@@ -66,17 +66,20 @@ def test_slicing_by_threshold(basic_moonwatcher_dataset):
     basic_moonwatcher_dataset.add_predefined_metadata(
         predefined_metadata_key="brightness",
     )
-    slice_dataset = basic_moonwatcher_dataset.slice_by_threshold("brightness", ">", 190)
+    slice_dataset = basic_moonwatcher_dataset.slice_by_threshold(
+        "brightness", ">", 190)
     for idx in slice_dataset.indices:
         brightness = basic_moonwatcher_dataset.datapoints[idx].metadata["brightness"]
-        assert brightness > 190, f"Expected brightness > 0.1 but got {brightness}"
+        assert brightness > 190, f"Expected brightness > 0.1 but got {
+            brightness}"
 
 
 def test_slicing_by_percentile(basic_moonwatcher_dataset):
     basic_moonwatcher_dataset.add_predefined_metadata(
         predefined_metadata_key="contrast",
     )
-    slice_dataset = basic_moonwatcher_dataset.slice_by_percentile("contrast", ">", 90)
+    slice_dataset = basic_moonwatcher_dataset.slice_by_percentile(
+        "contrast", ">", 90)
     assert len(slice_dataset) < len(basic_moonwatcher_dataset)
 
 

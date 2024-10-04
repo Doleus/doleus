@@ -29,7 +29,8 @@ class DataStorageManager:
     def get_filepath(self, datatype: DataType, name: str):
         if datatype.value not in self.accepted_datatypes:
             raise ValueError(
-                f'Datatype: "{datatype.value}" is not an accepted datatype for data storage'
+                f'Datatype: "{
+                    datatype.value}" is not an accepted datatype for data storage'
             )
         folder = self.storage_folder / datatype.value
         filepath = folder / (name + ".pt")
@@ -110,12 +111,11 @@ def load_check(name):
 def load_checksuite(name):
     return load(datatype=DataType.CHECKSUITE, name=name)
 
+# CHANGE: Load predictions by returning the model.predictions attribute
 
-def load_predictions(dataset_name, model_name):
-    return load(
-        datatype=DataType.PREDICTIONS,
-        name=_prediction_name(model_name=model_name, dataset_name=dataset_name),
-    )
+
+def load_predictions(model):
+    return model.predictions
 
 
 def load_groundtruths(dataset_name):

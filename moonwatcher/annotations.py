@@ -27,9 +27,11 @@ class BoundingBoxes(Annotation):
         :return:
         """
         if not isinstance(boxes_xyxy, Tensor):
-            raise TypeError("bounding boxes must be a Tensor of shape (num_boxes, 4)")
+            raise TypeError(
+                "bounding boxes must be a Tensor of shape (num_boxes, 4)")
         if not isinstance(labels, Tensor):
-            raise TypeError("labels must be an int Tensor of shape (num_boxes)")
+            raise TypeError(
+                "labels must be an int Tensor of shape (num_boxes)")
 
         super().__init__(datapoint_id)
         self.boxes_xyxy = boxes_xyxy
@@ -59,7 +61,8 @@ class PredictedBoundingBoxes(BoundingBoxes):
         :return:
         """
         if not isinstance(scores, Tensor):
-            raise TypeError("scores must be a float Tensor of shape (num_boxes)")
+            raise TypeError(
+                "scores must be a float Tensor of shape (num_boxes)")
 
         super().__init__(datapoint_number, boxes_xyxy, labels)
         self.scores = scores
@@ -95,7 +98,7 @@ class Labels(Annotation):
     # This class was modified to accept label tensors of any 1-dimensional shape (x,),
     # where x is any positive integer, instead of only accepting shapes (1,) or ().
     # This change allows for multi-label classification scenarios.
-    # 
+    #
     # The condition len(labels.shape) == 1 ensures that the tensor is 1-dimensional.
     # For a 1D tensor of shape (x,), len(labels.shape) will always be 1, regardless of x.
     # This allows us to accept tensors with any number of elements, while still
@@ -155,20 +158,22 @@ class Annotations:
     def __iter__(self):
         return iter(self.annotations)
 
+# CHANGE: Removed model name
+
 
 class Predictions(Annotations, MoonwatcherObject):
     def __init__(
         self,
         dataset,
-        model,
         predictions: List[
             Union[PredictedBoundingBoxes, BoundingBoxes, PredictedLabels, Labels]
         ] = None,
     ):
         super().__init__(annotations=predictions)
-        name = _prediction_name(model_name=model.name, dataset_name=dataset.name)
+        name = _prediction_name(dataset_name=dataset.name)
 
-        MoonwatcherObject.__init__(self, name=name, datatype=DataType.PREDICTIONS)
+        MoonwatcherObject.__init__(
+            self, name=name, datatype=DataType.PREDICTIONS)
 
 
 class GroundTruths(Annotations, MoonwatcherObject):

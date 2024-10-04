@@ -1,9 +1,9 @@
-from typing import Dict, Any
+from typing import List, Dict, Any, Union
 from abc import ABC, abstractmethod
 
 from torch.nn import Module
 
-from moonwatcher.utils.data import DataType
+from moonwatcher.utils.data import DataType, TaskType
 from moonwatcher.base.base import MoonwatcherObject
 from moonwatcher.utils.helpers import get_current_timestamp
 from moonwatcher.utils.api_connector import upload_if_possible
@@ -48,51 +48,37 @@ class ModelOutputInputTransformation(ABC):
         """
         pass
 
+    # CHANGE: Added predictions transform to simplify how users pass their model predictions
+    def transform_prediction(self, predictions: List[Any]):
+        """
+        Transforms user-provided predictions into a Predictions object.
+
+        :param predictions: A list containing user predictions in various formats.
+        :return: A Predictions object standardized for the Moonwatcher framework.
+        """
+        pass
+    # TODO: Add the function
+# CHANGE: Simplified MoonwatcherModel class by removing attributes that are not necessary anymore since model doesn't perform inference.
+
 
 class MoonwatcherModel(MoonwatcherObject, Module):
     def __init__(
         self,
-        model: Module,
         name: str,
-        task: str,
-        output_input_transform: ModelOutputInputTransformation,
-        device: str,
-        metadata: Dict[str, Any] = None,
-        description: str = None,
+        task_type: str,
+        predictions: List[Any],
     ):
         """
         Creates a moonwatcher model wrapper around an existing model that can be used with the moonwatcher framework
 
-        :param model: the model to be wrapped
         :param name: the name you want to give this model
         :param task: either classification or detection
-        :param output_input_transform: see ModelOutputInputTransformation class, formatting input output for moonwatcher
-        :param device: only cpu works for now
-        :param metadata: dictionary of tags for the model, can be ignored
-        :param description: description of the model, can be ignored
+        :param predictions: a list of predictions provided by the users
         """
         MoonwatcherObject.__init__(self, name=name, datatype=DataType.MODEL)
 
-        Module.__init__(self)
+        self.name = name
+        self.task_type = task_type
+        self.predictions = predictions
 
-        self.task = task
-        self.model = model
-        self.metadata = metadata or {}
-        self.timestamp = get_current_timestamp()
-        self.description = description
-        self.output_input_transform = output_input_transform
-        self.device = device
-        self.store()
-
-    def _upload(self):
-        data = {
-            "name": self.name,
-            "description": self.description,
-            "timestamp": self.timestamp,
-            "metadata": self.metadata,
-            "task": self.task,
-        }
-        return upload_if_possible(datatype=DataType.MODEL.value, data=data)
-
-    def forward(self, *args, **kwargs):
-        return self.model.forward(*args, **kwargs)
+    # CHANGE: Deleted delete and _upload function. Both aren't requried anymore
