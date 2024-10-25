@@ -319,6 +319,7 @@ mw_dataset = MoonwatcherDataset(
 dummy_model = MoonwatcherModel(
     name="DummyModel",
     task_type=TaskType.CLASSIFICATION.value,
+    task=Task.MULTILABEL.value,
     predictions=dummy_predictions
     # TODO: Add prediction probs
 )

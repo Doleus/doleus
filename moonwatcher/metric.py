@@ -203,7 +203,7 @@ def calculate_metric(
         relevant_ids,
         dataset,
         model,
-        # name_to_label,
+        # name_to_label, #TODO: Delete parameter
         groundtruths_loaded,
         predictions_loaded,
         metric,
