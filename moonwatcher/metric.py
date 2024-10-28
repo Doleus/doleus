@@ -1,37 +1,24 @@
 from typing import Union
 
 import torch
-import numpy as np
 import torchmetrics
-from sklearn.preprocessing import LabelEncoder
 
-from moonwatcher.utils.data import Task
-from moonwatcher.inference.inference import inference
-from moonwatcher.dataset.dataset import Slice, MoonwatcherDataset
-from moonwatcher.utils.data_storage import (
-    load_groundtruths,
-    load_predictions,
-    do_predictions_exist,
-)
-
-
-def run_inference_if_necessary(model, dataset):
-    if not do_predictions_exist(dataset_name=dataset.name, model_name=model.name):
-        inference(model=model, dataset=dataset, device=model.device)
+from moonwatcher.utils.data import TaskType, Task
+from moonwatcher.dataset.dataset import Moonwatcher, Slice
 
 
 def get_original_indices(dataset_or_slice):
     if isinstance(dataset_or_slice, Slice):
         parent_indices = get_original_indices(
-            dataset_or_slice.moonwatcher_dataset)
+            dataset_or_slice.original_dataset)
         return [parent_indices[i] for i in dataset_or_slice.indices]
-    elif isinstance(dataset_or_slice, MoonwatcherDataset):
+    elif isinstance(dataset_or_slice, Moonwatcher):
         return list(range(len(dataset_or_slice.dataset)))
     else:
         raise TypeError("Unsupported dataset type")
 
 
-def load_data(dataset_or_slice: Union[MoonwatcherDataset, Slice]):
+def load_data(dataset_or_slice: Union[Moonwatcher, Slice]):
     relevant_ids = get_original_indices(dataset_or_slice=dataset_or_slice)
     dataset = (
         dataset_or_slice.original_dataset
@@ -39,8 +26,8 @@ def load_data(dataset_or_slice: Union[MoonwatcherDataset, Slice]):
         else dataset_or_slice
     )
 
-    groundtruths_loaded = load_groundtruths(dataset_name=dataset.name)
-    predictions_loaded = dataset.predictions
+    groundtruths_loaded = [dataset.groundtruths.get(i) for i in relevant_ids]
+    predictions_loaded = [dataset.predictions_obj.get(i) for i in relevant_ids]
 
     return relevant_ids, dataset, groundtruths_loaded, predictions_loaded
 
@@ -48,7 +35,6 @@ def load_data(dataset_or_slice: Union[MoonwatcherDataset, Slice]):
 def calculate_metric_internal(
     relevant_ids,
     dataset,
-    name_to_label,
     groundtruths_loaded,
     predictions_loaded,
     metric: str,
@@ -60,80 +46,65 @@ def calculate_metric_internal(
 
     metric_function = _METRIC_FUNCTIONS[metric]
 
-    try:
-        # Attempt to handle classification tasks
+    if dataset.task_type == TaskType.CLASSIFICATION.value:
         try:
-            groundtruths = np.array(
-                [groundtruths_loaded[i].labels.item() for i in relevant_ids],
-                dtype=np.int32,
-            )
-            predictions = np.array(
-                [predictions_loaded[i] for i in relevant_ids], dtype=np.int32
+            groundtruths = torch.stack(
+                [gt.labels for gt in groundtruths_loaded]
             )
 
-            if not groundtruths.size or not predictions.size:
-                return -1.0
-
-            num_classes = len(dataset.label_to_name)
-            task_type = "binary" if num_classes == 2 else "multiclass"
-
-            label_encoder = LabelEncoder()
-            label_encoder.fit(list(dataset.label_to_name.keys()))
-            groundtruths = label_encoder.transform(groundtruths.ravel())
-            predictions = label_encoder.transform(predictions.ravel())
-
-            groundtruths = torch.tensor(groundtruths).flatten()
-            predictions = torch.tensor(predictions).flatten()
+            predictions = torch.stack(
+                [pred.labels for pred in predictions_loaded]
+            )
 
             if "average" not in metric_parameters:
                 metric_parameters["average"] = "macro"
+
             if metric_class is not None:
                 metric_parameters["average"] = "none"
                 if isinstance(metric_class, str):
-                    if metric_class not in name_to_label:
+                    if dataset.label_to_name is None:
                         raise ValueError(
-                            f"Class name '{
-                                metric_class}' not found in label_to_name dictionary."
+                            "label_to_name mapping is not provided.")
+                    if metric_class not in dataset.label_to_name.values():
+                        raise ValueError(
+                            f"Class name '{metric_class}' not found in label_to_name mapping."
                         )
-                    metric_class = name_to_label[metric_class]
-                metric_class = label_encoder.transform([metric_class])[0]
+                    metric_class = list(dataset.label_to_name.keys())[
+                        list(dataset.label_to_name.values()).index(metric_class)
+                    ]
+                metric_class = int(metric_class)
 
             metric_value = metric_function(
                 predictions,
                 groundtruths,
-                task=task_type,
-                num_classes=num_classes,
+                task=dataset.task,
+                num_labels=dataset.num_classes,
                 **metric_parameters,
             )
 
             if metric_class is not None:
                 metric_value = metric_value[metric_class]
 
-        except RuntimeError as e:
-            # If classification task fails, assume it's a detection task
-            groundtruths = [groundtruths_loaded[i].to_dict()
-                            for i in relevant_ids]
+        except Exception as e:
+            raise Exception(f"Error occurred during metric computation: {e}")
 
-            # TODO: Not a nice solution, maybe we can instead convert predictions_loaded to our PredictedBoundingBoxes class?
-            predictions = [predictions_loaded[i] for i in relevant_ids]
+    elif dataset.task_type == TaskType.DETECTION.value:
+        try:
+            groundtruths = [gt.to_dict() for gt in groundtruths_loaded]
+            predictions = [pred.to_dict() for pred in predictions_loaded]
+
             for pred in predictions:
                 pred['boxes'] = torch.tensor(
                     pred['boxes'], dtype=torch.float32)
                 pred['labels'] = torch.tensor(
                     pred['labels'], dtype=torch.int64)
-                pred['scores'] = torch.tensor(
-                    pred['scores'], dtype=torch.float32)
+                if 'scores' in pred:
+                    pred['scores'] = torch.tensor(
+                        pred['scores'], dtype=torch.float32)
 
-            groundtruths, predictions = zip(
-                *[
-                    (gt, pred)
-                    for gt, pred in zip(groundtruths, predictions)
-                    if len(gt["boxes"]) > 0 and len(pred["boxes"]) > 0
-                ]
-            )
-
-            if not groundtruths or not predictions:
-                return -1.0
+            for gt in groundtruths:
+                gt['boxes'] = torch.tensor(gt['boxes'], dtype=torch.float32)
+                gt['labels'] = torch.tensor(gt['labels'], dtype=torch.int64)
 
             if metric_class is not None:
                 metric_parameters["class_metrics"] = True
@@ -141,18 +112,23 @@ def calculate_metric_internal(
             if metric in ["mAP", "mAP_small", "mAP_medium", "mAP_large"]:
                 metric_parameters["iou_type"] = "bbox"
 
-            metric_function = metric_function(**metric_parameters)
-            metric_function.update(predictions, groundtruths)
-            metric_value = metric_function.compute()
+            metric_function_instance = metric_function(**metric_parameters)
+            metric_function_instance.update(predictions, groundtruths)
+            metric_value = metric_function_instance.compute()
 
             if metric_class is not None:
                 if isinstance(metric_class, str):
-                    if metric_class not in name_to_label:
+                    if dataset.label_to_name is None:
                         raise ValueError(
-                            f"Class name '{
-                                metric_class}' not found in label_to_name dictionary."
+                            "label_to_name mapping is not provided.")
+                    if metric_class not in dataset.label_to_name.values():
+                        raise ValueError(
+                            f"Class name '{metric_class}' not found in label_to_name mapping."
                         )
-                    metric_class = name_to_label[metric_class]
+                    metric_class = list(dataset.label_to_name.keys())[
+                        list(dataset.label_to_name.values()).index(metric_class)
+                    ]
+                metric_class = int(metric_class)
 
                 if metric in ["mAP", "mAP_small", "mAP_medium", "mAP_large"]:
                     index = torch.where(
@@ -164,13 +140,15 @@ def calculate_metric_internal(
                     )
                     metric_value = 0.0 if metric_value < 0.0 else metric_value
                 else:
-                    metric_class = "iou/cl_" + str(metric_class)
-                    metric_value = metric_value.get(metric_class, 0.0)
+                    metric_class_key = f"{_METRIC_KEYS[metric]}/cl_{metric_class}"
+                    metric_value = metric_value.get(metric_class_key, 0.0)
             else:
                 metric_value = metric_value[_METRIC_KEYS[metric]]
 
-    except Exception as e:
-        raise Exception(f"Error occurred during metric computation: {e}")
+        except Exception as e:
+            raise Exception(f"Error occurred during metric computation: {e}")
+    else:
+        raise ValueError(f"Unsupported task type: {dataset.task_type}")
 
     if hasattr(metric_value, "item"):
         metric_value = metric_value.item()
@@ -179,7 +157,7 @@ def calculate_metric_internal(
 
 
 def calculate_metric(
-    dataset_or_slice: Union[MoonwatcherDataset, Slice],
+    dataset_or_slice: Union[Moonwatcher, Slice],
     metric: str,
     metric_parameters=None,
     metric_class=None,
@@ -188,17 +166,9 @@ def calculate_metric(
         dataset_or_slice
     )
 
-    label_to_name = (
-        dataset_or_slice.moonwatcher_dataset.label_to_name
-        if isinstance(dataset_or_slice, Slice)
-        else dataset_or_slice.label_to_name
-    )
-    name_to_label = {v: k for k, v in label_to_name.items()}
-
     return calculate_metric_internal(
         relevant_ids,
         dataset,
-        name_to_label,
         groundtruths_loaded,
         predictions_loaded,
         metric,
@@ -222,7 +192,6 @@ _METRIC_FUNCTIONS = {
     "GeneralizedIntersectionOverUnion": torchmetrics.detection.GeneralizedIntersectionOverUnion,
     "IntersectionOverUnion": torchmetrics.detection.IntersectionOverUnion,
 }
-
 
 _METRIC_KEYS = {
     "mAP": "map",

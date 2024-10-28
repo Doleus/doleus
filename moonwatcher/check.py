@@ -3,21 +3,21 @@ from pathlib import Path
 from typing import Optional, List, Union, Dict, Any
 
 from moonwatcher.utils.data import OPERATOR_DICT
-from moonwatcher.dataset.dataset import MoonwatcherDataset, Slice
+from moonwatcher.dataset.dataset import Moonwatcher, Slice
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.metric import calculate_metric
 from moonwatcher.utils.helpers import get_current_timestamp
 from moonwatcher.utils.api_connector import upload_if_possible
 from moonwatcher.utils.data import DataType
 from moonwatcher.base.base import MoonwatcherObject
-from moonwatcher.utils.data import Task
+from moonwatcher.utils.data import Task, TaskType
 
 
 class Check(MoonwatcherObject):
     def __init__(
         self,
         name: str,
-        dataset_or_slice: Union[MoonwatcherDataset, Slice],
+        dataset_or_slice: Union[Moonwatcher, Slice],
         metric: str,
         metric_parameters: Optional[Dict] = None,
         metric_class: str = None,
@@ -30,9 +30,10 @@ class Check(MoonwatcherObject):
          Creates a check
 
         :param name: the name you want to give this check
-        :param dataset_or_slice: the dataset or slice to use
-        :param metric: the metric to apply (torchmetric)
+        :param dataset_or_slice: the Moonwatcher dataset or a Slice to use
+        :param metric: the metric to apply
         :param metric_parameters: optional parameters for the metrics
+        :param metric_class: optional class of the metric
         :param description: optional description of the check
         :param metadata: optional tags for the check
         :param operator: optional if you want to test, compare symbol like >, >= etc.
@@ -256,8 +257,7 @@ class ReportVisualizer:
 
                 operator = f"{operator}".center(3)
                 comparison = f"{operator} {value}"
-                result = f"{self.GREEN if report['success'] else self.RED}{
-                    report_result}{self.END}"
+                result = f"{self.GREEN if report['success'] else self.RED}{report_result}{self.END}"
             else:
                 comparison = f""
                 result = f" {report_result}"
@@ -267,8 +267,7 @@ class ReportVisualizer:
                 printed_set = report["slice_name"]
 
             appendix = f"   ({report['metric']} on {printed_set})"
-            print_statement = f"{test_output_str.ljust(40)} {self.BOLD}{result}{
-                self.END} {comparison}{appendix}"
+            print_statement = f"{test_output_str.ljust(40)} {self.BOLD}{result}{self.END} {comparison}{appendix}"
             print(print_statement)
 
 
@@ -278,7 +277,7 @@ def visualize_report(report):
 
 
 def automated_checking(
-    mw_dataset: MoonwatcherDataset,
+    mw_dataset: Moonwatcher,
     metadata_keys: List[str] = None,
     metadata_list: List[Dict[str, Any]] = None,
     slicing_conditions: List[Dict[str, Any]] = None,
@@ -287,12 +286,12 @@ def automated_checking(
 ):
     # Load demo configurations if specified
     if demo:
-        if mw_dataset.task == Task.CLASSIFICATION.value:
+        if mw_dataset.task_type == TaskType.CLASSIFICATION.value:
             filename = "demo_classification.json"
-        elif mw_dataset.task == Task.DETECTION.value:
+        elif mw_dataset.task_type == TaskType.DETECTION.value:
             filename = "demo_detection.json"
         else:
-            raise ValueError(f"Unsupported task: {mw_dataset.task}")
+            raise ValueError(f"Unsupported task type: {mw_dataset.task_type}")
 
         cur_filepath = Path(__file__)
         with open(

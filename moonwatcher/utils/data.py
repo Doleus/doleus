@@ -13,9 +13,15 @@ OPERATOR_DICT = {
 }
 
 
-class Task(Enum):
+class TaskType(Enum):
     CLASSIFICATION = "classification"
     DETECTION = "detection"
+
+
+class Task(Enum):
+    BINARY = "binary"
+    MULTICLASS = "multiclass"
+    MULTILABEL = "multilabel"
 
 
 class DataType(Enum):

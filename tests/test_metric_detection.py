@@ -14,9 +14,9 @@ from moonwatcher.utils.data_storage import (
 
 
 class MockModel:
-    def __init__(self, name, task, device):
+    def __init__(self, name, task_type, device):
         self.name = name
-        self.task = task
+        self.task_type = task_type
         self.device = device
 
 
@@ -80,7 +80,8 @@ def patch_functions(monkeypatch):
 
 
 def load_data_for_testing():
-    model = MockModel(name="mock_model", task=Task.DETECTION.value, device="cpu")
+    model = MockModel(name="mock_model",
+                      task_type=TaskType.DETECTION.value, device="cpu")
     dataset = MockDataset(name="mock_dataset")
     relevant_ids = list(range(4))
     groundtruths_loaded = mock_load_groundtruths(dataset.name)
@@ -104,7 +105,8 @@ def test_calculate_iou():
         predictions_loaded,
         "IntersectionOverUnion",
     )
-    assert result > 0.75, f"Expected IoU to be greater than 0.75 but got {result}"
+    assert result > 0.75, f"Expected IoU to be greater than 0.75 but got {
+        result}"
 
 
 def test_calculate_map():
@@ -123,7 +125,8 @@ def test_calculate_map():
         predictions_loaded,
         "mAP",
     )
-    assert result > 0.7, f"Expected mAP to be greater than 0.7 but got {result}"
+    assert result > 0.7, f"Expected mAP to be greater than 0.7 but got {
+        result}"
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-from moonwatcher.utils.data import OPERATOR_DICT, Task, DataType
+from moonwatcher.utils.data import OPERATOR_DICT, TaskType, DataType
 
 
 def test_operator_dict():
@@ -26,8 +26,8 @@ def test_operator_dict():
 
 
 def test_task_enum():
-    assert Task.CLASSIFICATION.value == "classification"
-    assert Task.DETECTION.value == "detection"
+    assert TaskType.CLASSIFICATION.value == "classification"
+    assert TaskType.DETECTION.value == "detection"
 
 
 def test_data_type_enum():

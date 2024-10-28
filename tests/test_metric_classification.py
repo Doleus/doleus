@@ -16,7 +16,7 @@ from moonwatcher.utils.data_storage import (
 class MockModel:
     def __init__(self, name, task, device):
         self.name = name
-        self.task = task
+        self.task_type = task_type
         self.device = device
 
 
@@ -64,7 +64,8 @@ def patch_functions(monkeypatch):
 
 
 def load_data_for_testing():
-    model = MockModel(name="mock_model", task=Task.CLASSIFICATION.value, device="cpu")
+    model = MockModel(name="mock_model",
+                      task_type=TaskType.CLASSIFICATION.value, device="cpu")
     dataset = MockDataset(
         name="mock_dataset",
         labels=[0, 1, 0, 1],
@@ -111,7 +112,8 @@ def test_calculate_precision():
         predictions_loaded,
         "Precision",
     )
-    assert result == 0.66667, f"Expected Precision to be 0.66667 but got {result}"
+    assert result == 0.66667, f"Expected Precision to be 0.66667 but got {
+        result}"
 
 
 def test_calculate_recall():
