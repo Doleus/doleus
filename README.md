@@ -11,6 +11,26 @@
   [![Moonwatcher on Discord](https://img.shields.io/discord/1230407128842506251?label=Discord)](https://discord.com/invite/xHgSYGXZQK)
 
 </div>
+## Setup
+Install dependencies:
+```sh
+poetry install
+```
+
+Install pre-commit hooks (checking if commit message format is valid):
+```sh
+poetry run pre-commit install --hook-type commit-msg
+```
+
+Commit messages (and Pull Request titles) should have this format:
+```sh
+<tag>: <message in lower caps>
+```
+
+Example:
+```sh
+git commit -m "feat: added new metric"
+```
 
 ## Install Moonwatcher 🌝
 
