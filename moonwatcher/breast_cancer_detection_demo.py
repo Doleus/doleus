@@ -10,14 +10,14 @@ import torch
 from torch.utils.data import Dataset
 from torch.utils.data import Subset
 
-from moonwatcher.dataset.dataset import MoonwatcherDataset
-from moonwatcher.model.model import MoonwatcherModel
+from moonwatcher.dataset.dataset import Moonwatcher
 from moonwatcher.utils.data import TaskType, Task
 from moonwatcher.check import Check, CheckSuite
 
 # Variables
-EXAMS_PATH = "/Users/hendrik/Studium/Master/Thesis/Data/physionet.org/files/vindr-mammo/1.0.0/images"
-BREAST_LEVEL_ANNOTATIONS_PATH = "/Users/hendrik/Studium/Master/Thesis/Data/physionet.org/files/vindr-mammo/1.0.0/breast-level_annotations.csv"
+# TODO: Give as command line arguments
+EXAMS_PATH = "/Users/niklasschmolenski/Desktop/work/data/images"
+BREAST_LEVEL_ANNOTATIONS_PATH = "/Users/niklasschmolenski/Desktop/work/data/breast_level_annotations.csv"
 
 
 """
@@ -305,32 +305,26 @@ def dataset_output_transform(datapoint):
     return images, labels
 
 
-# Create moonwatcher dataset
-mw_dataset = MoonwatcherDataset(
+# Create the Moonwatcher object
+# TODO: Split into MoonwatcherClassification and MoonwatcherDetection
+moonwatcher = Moonwatcher(
     name="VinDrMammo",
     dataset=dataset,
-    num_classes=4,
+    predictions=dummy_predictions,
     task_type=TaskType.CLASSIFICATION.value,
     task=Task.MULTILABEL.value,
+    num_classes=4,
     output_transform=dataset_output_transform,
-)
-
-# Instantiate a model
-dummy_model = MoonwatcherModel(
-    name="DummyModel",
-    task_type=TaskType.CLASSIFICATION.value,
-    predictions=dummy_predictions
-    # TODO: Add prediction probs
 )
 
 # Accuracy check for the model
 accuracy_check = Check(
     name="Accuracy",
-    dataset_or_slice=mw_dataset,
+    # TODO: Rename dataset_or_slice to something which makes sense
+    dataset_or_slice=moonwatcher,
     metric="Accuracy",
     operator=">",
     value=0.8,
-    model=dummy_model
 )
 
 check_suite = CheckSuite(

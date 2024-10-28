@@ -3,8 +3,7 @@ from pathlib import Path
 from typing import Optional, List, Union, Dict, Any
 
 from moonwatcher.utils.data import OPERATOR_DICT
-from moonwatcher.dataset.dataset import MoonwatcherDataset, Slice
-from moonwatcher.model.model import MoonwatcherModel
+from moonwatcher.dataset.dataset import Moonwatcher, Slice
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.metric import calculate_metric
 from moonwatcher.utils.helpers import get_current_timestamp
@@ -13,15 +12,12 @@ from moonwatcher.utils.data import DataType
 from moonwatcher.base.base import MoonwatcherObject
 from moonwatcher.utils.data import Task, TaskType
 
-# CHANGE: Added model to the Check object
-
 
 class Check(MoonwatcherObject):
     def __init__(
         self,
         name: str,
-        dataset_or_slice: Union[MoonwatcherDataset, Slice],
-        model: MoonwatcherModel,
+        dataset_or_slice: Union[Moonwatcher, Slice],
         metric: str,
         metric_parameters: Optional[Dict] = None,
         metric_class: str = None,
@@ -34,10 +30,10 @@ class Check(MoonwatcherObject):
          Creates a check
 
         :param name: the name you want to give this check
-        :param dataset_or_slice: the dataset or slice to use
-        :param model: the model to use
-        :param metric: the metric to apply (torchmetric)
+        :param dataset_or_slice: the Moonwatcher dataset or a Slice to use
+        :param metric: the metric to apply
         :param metric_parameters: optional parameters for the metrics
+        :param metric_class: optional class of the metric
         :param description: optional description of the check
         :param metadata: optional tags for the check
         :param operator: optional if you want to test, compare symbol like >, >= etc.
@@ -56,7 +52,6 @@ class Check(MoonwatcherObject):
         self.metric = metric
         self.metric_parameters = metric_parameters
         self.metric_class = metric_class
-        self.model = model
         self.store()
 
     def _upload(self):
@@ -88,13 +83,11 @@ class Check(MoonwatcherObject):
     def __call__(
         self, show=False, save_report=False
     ) -> Dict[str, Any]:
-        # CHANGE: Passing model as parameter to calculate_metric
         result = calculate_metric(
             dataset_or_slice=self.dataset_or_slice,
             metric=self.metric,
             metric_parameters=self.metric_parameters,
             metric_class=self.metric_class,
-            model=self.model
         )
         report = {
             "check_name": self.name,
@@ -264,8 +257,7 @@ class ReportVisualizer:
 
                 operator = f"{operator}".center(3)
                 comparison = f"{operator} {value}"
-                result = f"{self.GREEN if report['success'] else self.RED}{
-                    report_result}{self.END}"
+                result = f"{self.GREEN if report['success'] else self.RED}{report_result}{self.END}"
             else:
                 comparison = f""
                 result = f" {report_result}"
@@ -275,8 +267,7 @@ class ReportVisualizer:
                 printed_set = report["slice_name"]
 
             appendix = f"   ({report['metric']} on {printed_set})"
-            print_statement = f"{test_output_str.ljust(40)} {self.BOLD}{result}{
-                self.END} {comparison}{appendix}"
+            print_statement = f"{test_output_str.ljust(40)} {self.BOLD}{result}{self.END} {comparison}{appendix}"
             print(print_statement)
 
 
@@ -286,7 +277,7 @@ def visualize_report(report):
 
 
 def automated_checking(
-    mw_dataset: MoonwatcherDataset,
+    mw_dataset: Moonwatcher,
     metadata_keys: List[str] = None,
     metadata_list: List[Dict[str, Any]] = None,
     slicing_conditions: List[Dict[str, Any]] = None,

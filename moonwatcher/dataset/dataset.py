@@ -14,7 +14,7 @@ from moonwatcher.utils.api_connector import is_api_key_and_endpoint_available
 from moonwatcher.base.base import MoonwatcherObject
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.utils.api_connector import upload_if_possible
-from moonwatcher.annotations import GroundTruths, Labels, BoundingBoxes
+from moonwatcher.annotations import GroundTruths, Labels, BoundingBoxes, Predictions, PredictedLabels, PredictedBoundingBoxes
 from moonwatcher.utils.helpers import get_current_timestamp, convert_to_list
 
 
@@ -25,19 +25,16 @@ def find_root_dataset(dataset):
     return dataset
 
 
-# CHANGE: Added new parameters and deleted existing parameters to Dataset class
-# TODO: Update the docstrings
-class MoonwatcherDataset(MoonwatcherObject, Dataset):
+class Moonwatcher(MoonwatcherObject, Dataset):
     def __init__(
         self,
         dataset: Dataset,
         name: str,
-        task_type: TaskType,
-        task: Task,
+        task_type: str,
+        task: str,
         output_transform: Callable,
-        # TODO: Discuss if we want to keep this as an optional paramter
+        predictions: List[Any],
         num_classes: int = None,
-        # TODO: Discuss if we want to keep this as an optional paramter
         label_to_name: Dict = None,
         metadata: Dict[str, Any] = None,
         description: str = None,
@@ -45,18 +42,20 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
         datapoints_metadata: List[Dict[str, Any]] = None,
     ):
         """
-        Creates a moonwatcher dataset wrapper around an existing dataset that can be used with the moonwatcher framework
+        Creates a moonwatcher dataset and model wrapper around an existing dataset.
 
         :param dataset: the dataset to be wrapped
         :param name: the name of the dataset
         :param task_type: either classification or detection
         :param task: either binary, multiclass or multilabel
-        :param output_transform: necessary to transform dataset output into moonwatcher format, see demo files
+        :param output_transform: necessary to transform dataset output into moonwatcher format
+        :param predictions: a list of predictions for the dataset
+        :param num_classes: number of classes
         :param label_to_name: dictionary mapping label ids to name
-        :param metadata: dictionary of tags for the dataset, can be ignored
-        :param description: description of the dataset, can be ignored
-        :param locators: necessary only for use with the webapp, urls for every image to display in webapp
-        :param datapoints_metadata: supply metadata for every datapoint, can be used for slicing, optional
+        :param metadata: dictionary of tags for the dataset
+        :param description: description of the dataset
+        :param locators: URLs for every image to display in webapp
+        :param datapoints_metadata: metadata for every datapoint
         """
         MoonwatcherObject.__init__(self, name=name, datatype=DataType.DATASET)
         Dataset.__init__(self)
@@ -71,7 +70,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
         self.num_classes = num_classes
         self.datapoints = []
         self.datapoints_metadata = datapoints_metadata
-        self.predictions = None
+        self.predictions = predictions
+        self.output_transform = output_transform
 
         if self.locators:
             if not isinstance(self.locators, list):
@@ -98,7 +98,6 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
                 datapoint = Datapoint(number=i, metadata=metadata)
             self.datapoints.append(datapoint)
 
-        self.output_transform = output_transform
         self.groundtruths = GroundTruths(self)
 
         for index in tqdm(
@@ -118,8 +117,7 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
                     image, label = transformed_data
                 except ValueError as e:
                     raise ValueError(
-                        f"Dataset output_transform should return two elements (image, label): {
-                            e}"
+                        f"Dataset output_transform should return two elements (image, label): {e}"
                     )
                 groundtruth = Labels(datapoint_number=index, labels=label)
             elif self.task_type == TaskType.DETECTION.value:
@@ -127,16 +125,14 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
                     image, bounding_boxes, labels = transformed_data
                 except ValueError as e:
                     raise ValueError(
-                        f"Dataset output_transform should return three elements (image, bounding_boxes, labels): {
-                            e}"
+                        f"Dataset output_transform should return three elements (image, bounding_boxes, labels): {e}"
                     )
                 groundtruth = BoundingBoxes(
-                    datapoint_id=index, boxes_xyxy=bounding_boxes, labels=labels
+                    datapoint_number=index, boxes_xyxy=bounding_boxes, labels=labels
                 )
             else:
                 raise ValueError(
-                    f"Unsupported task type: {
-                        self.task_type} - Select either 'classification' or 'detection'"
+                    f"Unsupported task type: {self.task_type} - Select either 'classification' or 'detection'"
                 )
 
             self.groundtruths.add(groundtruth)
@@ -144,6 +140,33 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
         self.groundtruths.store()
         self.store()
         self.upload_if_not()
+
+        # Handle predictions
+        # TODO: Requires cleanup
+        if self.predictions is not None:
+            if len(self.predictions) != len(self.dataset):
+                raise ValueError(
+                    f"Number of predictions ({len(self.predictions)}) does not match number of datapoints ({len(self.dataset)})"
+                )
+            self.predictions_obj = Predictions(self)
+            for index, prediction in enumerate(self.predictions):
+                if self.task_type == TaskType.CLASSIFICATION.value:
+                    scores = torch.tensor(prediction, dtype=torch.float32)
+                    # TODO: use torchmetrics function to determine wether we get labels (int) or scores (float)
+                    labels = (scores > 0.5).to(torch.int64)
+                    pred = PredictedLabels(
+                        datapoint_number=index, labels=labels, scores=scores)
+                elif self.task_type == TaskType.DETECTION.value:
+                    boxes, labels = prediction
+                    pred = PredictedBoundingBoxes(
+                        datapoint_number=index, boxes_xyxy=boxes, labels=labels, scores=scores
+                    )
+                else:
+                    raise ValueError(
+                        f"Unsupported task type: {self.task_type} - Select either 'classification' or 'detection'"
+                    )
+                self.predictions_obj.add(pred)
+            self.predictions_obj.store()
 
     def _upload(self):
         datapoints = []
@@ -186,18 +209,34 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
                     "labels": convert_to_list(groundtruth.labels),
                 }
             )
-        return upload_if_possible(
+        upload_if_possible(
             datatype=DataType.GROUNDTRUTHS.value, data=groundtruths
         )
 
-    def get_datapoint(self, item):
-        return self.datapoints[item]
+        predictions = []
+        for prediction in self.predictions_obj:
+            predictions.append(
+                {
+                    "dataset_name": self.name,
+                    "datapoint_number": prediction.datapoint_number,
+                    "boxes": (
+                        [convert_to_list(boxes)
+                         for boxes in prediction.boxes_xyxy]
+                        if hasattr(prediction, "boxes_xyxy")
+                        else None
+                    ),
+                    "labels": convert_to_list(prediction.labels),
+                }
+            )
+        return upload_if_possible(
+            datatype=DataType.PREDICTIONS.value, data=predictions
+        )
 
     def add_predefined_metadata(self, predefined_metadata_key: str):
         """
         Use a predefined metadata creation function to add metadata "brightness", "contrast", "saturation", "resolution"
 
-        :param predefined_metadata_key
+        :param predefined_metadata_key: the key for the type of metadata to add
         """
         root_dataset = find_root_dataset(self.dataset)
         transform = root_dataset.transform
@@ -261,8 +300,7 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
 
         if class_id is None:
             raise ValueError(
-                f"Class name '{
-                    class_name}' not found in label_to_name mapping."
+                f"Class name '{class_name}' not found in label_to_name mapping."
             )
 
         for i, datapoint in enumerate(tqdm(self.datapoints, desc=f"Adding metadata")):
@@ -317,7 +355,8 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
             if metadata_key not in self.datapoints[i].metadata:
                 metadata_value = metadata_func(image)
                 self.datapoints[i].add_metadata(
-                    key=metadata_key, value=metadata_value)
+                    key=metadata_key, value=metadata_value
+                )
 
         root_dataset.transform = transform
         self.store(overwrite=True)
@@ -331,8 +370,7 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
             "==": "eq",
             "class": "cl",
         }
-        filename = f"{self.name}_{metadata_key}_{
-            abbreviations[operator_str]}_{str(value).replace('.', '_')}"
+        filename = f"{self.name}_{metadata_key}_{abbreviations[operator_str]}_{str(value).replace('.', '_')}"
         return filename
 
     def slice_by_threshold(
@@ -396,7 +434,7 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
 
         return Slice(self, slice_name, indices, self)
 
-    def slice_by_class(self, metadata_key: str, slice_names: list[str] = None):
+    def slice_by_class(self, metadata_key: str, slice_names: List[str] = None):
         """
         Create slices based on a categorical metadatum (e.g. weather: "sunny", "rainy" ...)
 
@@ -447,18 +485,18 @@ class MoonwatcherDataset(MoonwatcherObject, Dataset):
         self.__dict__.update(state)
 
 
-class Slice(MoonwatcherDataset, MoonwatcherObject):
+class Slice(Moonwatcher, MoonwatcherObject):
     def __init__(
         self,
-        moonwatcher_dataset: MoonwatcherDataset,
+        moonwatcher_dataset: Moonwatcher,
         name: str,
         indices: List[int],
-        original_dataset: MoonwatcherDataset,
+        original_dataset: Moonwatcher,
         description: str = None,
     ):
         self.dataset_name = (
             moonwatcher_dataset.name
-        )  # needs to be here before initialization of MwObject
+        )
         MoonwatcherObject.__init__(self, name=name, datatype=DataType.SLICE)
 
         self.task_type = moonwatcher_dataset.task_type
@@ -466,10 +504,11 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         self.output_transform = moonwatcher_dataset.output_transform
         self.metadata = moonwatcher_dataset.metadata
         self.locators = moonwatcher_dataset.locators
-        self.datapoints = moonwatcher_dataset.datapoints
+        self.datapoints = [moonwatcher_dataset.datapoints[i] for i in indices]
         self.datapoints_metadata = moonwatcher_dataset.datapoints_metadata
         self.groundtruths = moonwatcher_dataset.groundtruths
         self.predictions = moonwatcher_dataset.predictions
+        self.predictions_obj = moonwatcher_dataset.predictions_obj
 
         self.description = description
         self.indices = indices
@@ -477,10 +516,9 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         self.moonwatcher_dataset = moonwatcher_dataset
         self.original_dataset = original_dataset
 
-        self.datapoints = [self.datapoints[i] for i in self.indices]
-        self.locators = (
-            [self.locators[i] for i in self.indices] if self.locators else None
-        )
+        if self.locators:
+            self.locators = [self.locators[i] for i in indices]
+
         self.store()
         self.upload_if_not()
 
@@ -505,14 +543,15 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         op_func = OPERATOR_DICT[operator_str]
 
         indices = [
-            i
-            for i, datapoint in enumerate(self.datapoints)
+            idx
+            for idx, datapoint in zip(self.indices, self.datapoints)
             if op_func(datapoint.get_metadata(metadata_key), threshold)
         ]
 
         if slice_name is None:
             slice_name = self._generate_filename(
-                metadata_key, operator_str, threshold)
+                metadata_key, operator_str, threshold
+            )
 
         return Slice(self, slice_name, indices, self.original_dataset)
 
@@ -529,18 +568,19 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         threshold = np.percentile(values, percentile)
 
         indices = [
-            i
-            for i, datapoint in enumerate(self.datapoints)
+            idx
+            for idx, datapoint in zip(self.indices, self.datapoints)
             if op_func(datapoint.get_metadata(metadata_key), threshold)
         ]
 
         if slice_name is None:
             slice_name = self._generate_filename(
-                metadata_key, operator_str, percentile)
+                metadata_key, operator_str, percentile
+            )
 
         return Slice(self, slice_name, indices, self.original_dataset)
 
-    def slice_by_class(self, metadata_key: str, slice_names: list[str] = None):
+    def slice_by_class(self, metadata_key: str, slice_names: List[str] = None):
         """
         Create slices based on a categorical metadatum (e.g. weather: "sunny", "rainy" ...)
 
@@ -549,13 +589,13 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         """
         # Collect indices by class value
         class_indices = {}
-        for i, datapoint in enumerate(self.datapoints):
+        for idx, datapoint in zip(self.indices, self.datapoints):
             class_value = datapoint.get_metadata(metadata_key)
 
             if class_value not in class_indices:
                 class_indices[class_value] = []
 
-            class_indices[class_value].append(i)
+            class_indices[class_value].append(idx)
 
         class_values = sorted(class_indices.keys())
         num_classes = len(class_values)
@@ -610,3 +650,19 @@ class Slice(MoonwatcherDataset, MoonwatcherObject):
         """
         super().add_metadata_from_list(metadata_list)
         self.original_dataset.add_metadata_from_list(metadata_list)
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, item):
+        return self.dataset[item]
+
+    def __getattr__(self, attr):
+        return getattr(self.dataset, attr)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
