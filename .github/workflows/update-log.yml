@@ -1,8 +1,9 @@
-name: release
+name: Update Changelog
 
 on:
   pull_request:
     types: [closed]
+
 jobs:
   cd:
     permissions:
@@ -24,9 +25,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Use Python Semantic Release to update CHANGELOG.md
-        id: release
-        uses: python-semantic-release/python-semantic-release@v8.3.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish: false
+      - name: Update changelog without release
+        run: |
+          pip install python-semantic-release
+          semantic-release changelog --branch main
