@@ -1,30 +1,28 @@
 from typing import List, Union
 
-from torch import Tensor
 import torch
+from torch import Tensor
 from moonwatcher.utils.data import DataType
 from moonwatcher.base.base import MoonwatcherObject
-from moonwatcher.utils.data_storage import _prediction_name
 
 
 class Annotation:
-    def __init__(self, datapoint_number):
+    def __init__(self, datapoint_number: int):
         self.datapoint_number = datapoint_number
 
 
 class BoundingBoxes(Annotation):
     def __init__(
         self,
-        datapoint_id: int,
+        datapoint_number: int,
         boxes_xyxy: Tensor,
         labels: Tensor,
     ):
         """
         Initializes a BoundingBoxes object
-        :param datapoint_id: The unique identifier for the data point.
+        :param datapoint_number: The unique identifier for the data point.
         :param boxes_xyxy: A tensor of shape (num_boxes, 4) representing the bounding box coordinates.
         :param labels: An integer tensor of shape (num_boxes) representing labels for each bounding box.
-        :return:
         """
         if not isinstance(boxes_xyxy, Tensor):
             raise TypeError(
@@ -33,7 +31,7 @@ class BoundingBoxes(Annotation):
             raise TypeError(
                 "labels must be an int Tensor of shape (num_boxes)")
 
-        super().__init__(datapoint_id)
+        super().__init__(datapoint_number)
         self.boxes_xyxy = boxes_xyxy
         self.labels = labels
 
@@ -58,7 +56,6 @@ class PredictedBoundingBoxes(BoundingBoxes):
         :param boxes_xyxy: A tensor of shape (num_boxes, 4) representing bounding box coordinates.
         :param labels: An integer tensor of shape (num_boxes) representing labels for each bounding box.
         :param scores: A float tensor of shape (num_boxes) representing the confidence score for each bounding box.
-        :return:
         """
         if not isinstance(scores, Tensor):
             raise TypeError(
@@ -81,9 +78,7 @@ class Labels(Annotation):
         Initialize a Labels object
         :param datapoint_number: The unique identifier for the data point.
         :param labels: A 1-dimensional integer tensor of shape (x,) representing the label(s).
-        :return:
         """
-        # CHANGE: Modified to accept tensors of shape (x,) where x is any positive integer
         if (
             not isinstance(labels, Tensor)
             or len(labels.shape) != 1
@@ -94,33 +89,17 @@ class Labels(Annotation):
         super().__init__(datapoint_number)
         self.labels = labels
 
-    # CHANGE: Added a comment to document the changes made to this class
-    # This class was modified to accept label tensors of any 1-dimensional shape (x,),
-    # where x is any positive integer, instead of only accepting shapes (1,) or ().
-    # This change allows for multi-label classification scenarios.
-    #
-    # The condition len(labels.shape) == 1 ensures that the tensor is 1-dimensional.
-    # For a 1D tensor of shape (x,), len(labels.shape) will always be 1, regardless of x.
-    # This allows us to accept tensors with any number of elements, while still
-    # ensuring they are 1-dimensional.
-
 
 class PredictedLabels(Labels):
     def __init__(self, datapoint_number: int, labels: Tensor, scores: Tensor):
         """
-        Initialize a Labels object
+        Initialize a PredictedLabels object
         :param datapoint_number: The unique identifier for the data point.
-        :param labels: A 1-dimensional integer tensor of shape (1) representing the label.
-        :param scores: A float tensor of shape (num_classes) representing the confidence scores for each class.
-        :return:
+        :param labels: A 1-dimensional integer tensor representing the predicted label(s).
+        :param scores: A float tensor representing the confidence scores for each class.
         """
-        # TODO Check if torchmetrics accepts labels both as torch.tensor([1]) and torch.tensor(1)
-        if (
-            not isinstance(scores, Tensor)
-            or (scores.shape != (1,) and scores.shape != ())
-            or scores.dtype not in (torch.float16, torch.float32, torch.float64)
-        ):
-            raise TypeError("scores must be a 1-dimensional float Tensor")
+        if not isinstance(scores, Tensor):
+            raise TypeError("scores must be a float Tensor")
 
         super().__init__(datapoint_number, labels)
         self.scores = scores
@@ -142,9 +121,12 @@ class Annotations:
         )
 
     def get(self, datapoint_number):
-        return self.annotations[
-            self.datapoint_number_to_annotation_index[datapoint_number]
-        ]
+        index = self.datapoint_number_to_annotation_index.get(datapoint_number)
+        if index is not None:
+            return self.annotations[index]
+        else:
+            raise KeyError(
+                f"No annotation found for datapoint number {datapoint_number}")
 
     def get_datapoint_ids(self):
         return list(self.datapoint_number_to_annotation_index.keys())
@@ -158,29 +140,36 @@ class Annotations:
     def __iter__(self):
         return iter(self.annotations)
 
-# CHANGE: Removed model name
-
 
 class Predictions(Annotations, MoonwatcherObject):
     def __init__(
         self,
         dataset,
         predictions: List[
-            Union[PredictedBoundingBoxes, BoundingBoxes, PredictedLabels, Labels]
+            Union[PredictedBoundingBoxes, PredictedLabels]
         ] = None,
     ):
-        super().__init__(annotations=predictions)
-        name = _prediction_name(dataset_name=dataset.name)
-
+        """
+        Initializes a Predictions object
+        :param dataset: The Moonwatcher dataset associated with these predictions.
+        :param predictions: A list of predicted annotations.
+        """
+        Annotations.__init__(self, annotations=predictions)
         MoonwatcherObject.__init__(
-            self, name=name, datatype=DataType.PREDICTIONS)
+            self, name=dataset.name, datatype=DataType.PREDICTIONS
+        )
 
 
 class GroundTruths(Annotations, MoonwatcherObject):
     def __init__(
         self, dataset, groundtruths: List[Union[BoundingBoxes, Labels]] = None
     ):
-        super().__init__(annotations=groundtruths)
+        """
+        Initializes a GroundTruths object
+        :param dataset: The Moonwatcher dataset associated with these ground truths.
+        :param groundtruths: A list of ground truth annotations.
+        """
+        Annotations.__init__(self, annotations=groundtruths)
         MoonwatcherObject.__init__(
             self, name=dataset.name, datatype=DataType.GROUNDTRUTHS
         )
