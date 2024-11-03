@@ -666,3 +666,65 @@ class Slice(Moonwatcher, MoonwatcherObject):
 
     def __setstate__(self, state):
         self.__dict__.update(state)
+
+
+class MoonwatcherClassification(Moonwatcher):
+    def __init__(
+        self,
+        dataset: Dataset,
+        name: str,
+        task: str,
+        output_transform: Callable,
+        predictions: List[Any],
+        num_classes: int = None,
+        label_to_name: Dict = None,
+        metadata: Dict[str, Any] = None,
+        description: str = None,
+        locators: List[str] = None,
+        datapoints_metadata: List[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            dataset=dataset,
+            name=name,
+            task_type=TaskType.CLASSIFICATION.value,
+            task=task,
+            output_transform=output_transform,
+            predictions=predictions,
+            num_classes=num_classes,
+            label_to_name=label_to_name,
+            metadata=metadata,
+            description=description,
+            locators=locators,
+            datapoints_metadata=datapoints_metadata,
+        )
+
+
+class MoonwatcherDetection(Moonwatcher):
+    def __init__(
+        self,
+        dataset: Dataset,
+        name: str,
+        task: str,
+        output_transform: Callable,
+        predictions: List[Any],
+        num_classes: int = None,
+        label_to_name: Dict = None,
+        metadata: Dict[str, Any] = None,
+        description: str = None,
+        locators: List[str] = None,
+        datapoints_metadata: List[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            dataset=dataset,
+            name=name,
+            task_type=TaskType.DETECTION.value,
+            task=task,
+            output_transform=output_transform,
+            predictions=predictions,
+            num_classes=num_classes,
+            label_to_name=label_to_name,
+            metadata=metadata,
+            description=description,
+            locators=locators,
+            datapoints_metadata=datapoints_metadata,
+        )

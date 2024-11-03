@@ -10,7 +10,7 @@ import torch
 from torch.utils.data import Dataset
 from torch.utils.data import Subset
 
-from moonwatcher.dataset.dataset import Moonwatcher
+from moonwatcher.dataset.dataset import Moonwatcher, MoonwatcherClassification, MoonwatcherDetection
 from moonwatcher.utils.data import TaskType, Task
 from moonwatcher.check import Check, CheckSuite
 
@@ -306,12 +306,10 @@ def dataset_output_transform(datapoint):
 
 
 # Create the Moonwatcher object
-# TODO: Split into MoonwatcherClassification and MoonwatcherDetection
-moonwatcher = Moonwatcher(
+moonwatcher = MoonwatcherClassification(
     name="VinDrMammo",
     dataset=dataset,
     predictions=dummy_predictions,
-    task_type=TaskType.CLASSIFICATION.value,
     task=Task.MULTILABEL.value,
     num_classes=4,
     output_transform=dataset_output_transform,
