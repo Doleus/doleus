@@ -25,6 +25,7 @@ def find_root_dataset(dataset):
     return dataset
 
 
+# TODO: The naming is still suboptimal as it's not really descriptive.
 class Moonwatcher(MoonwatcherObject, Dataset):
     def __init__(
         self,
@@ -33,7 +34,7 @@ class Moonwatcher(MoonwatcherObject, Dataset):
         task_type: str,
         task: str,
         output_transform: Callable,
-        predictions: List[Any],
+        predictions: Tensor,
         num_classes: int = None,
         label_to_name: Dict = None,
         metadata: Dict[str, Any] = None,
@@ -49,7 +50,7 @@ class Moonwatcher(MoonwatcherObject, Dataset):
         :param task_type: either classification or detection
         :param task: either binary, multiclass or multilabel
         :param output_transform: necessary to transform dataset output into moonwatcher format
-        :param predictions: a list of predictions for the dataset
+        :param predictions: A torch tensor of predictions for the dataset.
         :param num_classes: number of classes
         :param label_to_name: dictionary mapping label ids to name
         :param metadata: dictionary of tags for the dataset
@@ -117,22 +118,35 @@ class Moonwatcher(MoonwatcherObject, Dataset):
                     image, label = transformed_data
                 except ValueError as e:
                     raise ValueError(
-                        f"Dataset output_transform should return two elements (image, label): {e}"
+                        f"Dataset output_transform should return two elements (image, label): {
+                            e}"
                     )
+
+                # Ensure label is a torch tensor
+                if not isinstance(label, torch.Tensor):
+                    raise TypeError(
+                        f"Label must be a torch tensor, but {
+                            label} is of type {type(label)}"
+                    )
+                # Convert label to 1-dimensional tensor if it is a tensor scalar
+                if label.dim() == 0:
+                    label = label.unsqueeze(0)
                 groundtruth = Labels(datapoint_number=index, labels=label)
             elif self.task_type == TaskType.DETECTION.value:
                 try:
                     image, bounding_boxes, labels = transformed_data
                 except ValueError as e:
                     raise ValueError(
-                        f"Dataset output_transform should return three elements (image, bounding_boxes, labels): {e}"
+                        f"Dataset output_transform should return three elements (image, bounding_boxes, labels): {
+                            e}"
                     )
                 groundtruth = BoundingBoxes(
                     datapoint_number=index, boxes_xyxy=bounding_boxes, labels=labels
                 )
             else:
                 raise ValueError(
-                    f"Unsupported task type: {self.task_type} - Select either 'classification' or 'detection'"
+                    f"Unsupported task type: {
+                        self.task_type} - Select either 'classification' or 'detection'"
                 )
 
             self.groundtruths.add(groundtruth)
@@ -146,11 +160,15 @@ class Moonwatcher(MoonwatcherObject, Dataset):
         if self.predictions is not None:
             if len(self.predictions) != len(self.dataset):
                 raise ValueError(
-                    f"Number of predictions ({len(self.predictions)}) does not match number of datapoints ({len(self.dataset)})"
+                    f"Number of predictions ({len(
+                        self.predictions)}) does not match number of datapoints ({len(self.dataset)})"
                 )
             self.predictions_obj = Predictions(self)
             for index, prediction in enumerate(self.predictions):
                 if self.task_type == TaskType.CLASSIFICATION.value:
+                    # If prediction is a scalar, add an extra dimension at position 0 to make it a 1-dimensional tensor
+                    if prediction.dim() == 0:
+                        prediction = prediction.unsqueeze(0)
                     scores = torch.tensor(prediction, dtype=torch.float32)
                     # TODO: use torchmetrics function to determine wether we get labels (int) or scores (float)
                     labels = (scores > 0.5).to(torch.int64)
@@ -163,7 +181,8 @@ class Moonwatcher(MoonwatcherObject, Dataset):
                     )
                 else:
                     raise ValueError(
-                        f"Unsupported task type: {self.task_type} - Select either 'classification' or 'detection'"
+                        f"Unsupported task type: {
+                            self.task_type} - Select either 'classification' or 'detection'"
                     )
                 self.predictions_obj.add(pred)
             self.predictions_obj.store()
@@ -300,7 +319,8 @@ class Moonwatcher(MoonwatcherObject, Dataset):
 
         if class_id is None:
             raise ValueError(
-                f"Class name '{class_name}' not found in label_to_name mapping."
+                f"Class name '{
+                    class_name}' not found in label_to_name mapping."
             )
 
         for i, datapoint in enumerate(tqdm(self.datapoints, desc=f"Adding metadata")):
@@ -370,7 +390,8 @@ class Moonwatcher(MoonwatcherObject, Dataset):
             "==": "eq",
             "class": "cl",
         }
-        filename = f"{self.name}_{metadata_key}_{abbreviations[operator_str]}_{str(value).replace('.', '_')}"
+        filename = f"{self.name}_{metadata_key}_{
+            abbreviations[operator_str]}_{str(value).replace('.', '_')}"
         return filename
 
     def slice_by_threshold(
