@@ -137,6 +137,8 @@ def test_predicted_bounding_boxes_score_validation(scores, expected_exception):
         (4, "not a tensor", TypeError),  # Non-tensor labels
         (5, tensor([[1, 2]], dtype=torch.int32),
          ValueError),  # 2D tensor (invalid)
+        # Scalar tensor. Please note that we expect the labels to be a 1-dimensional tensor, i.e. (x,). If you pass a scalar to a dataset, it will be converted to a 1-dimensional tensor.
+        (6, tensor(5, dtype=torch.int32), ValueError),
     ],
 )
 def test_labels_initialization(datapoint_id, labels, expected_exception):
