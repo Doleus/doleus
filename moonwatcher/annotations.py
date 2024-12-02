@@ -44,7 +44,10 @@ def validate_labels(labels: Tensor, expected_length: Optional[int] = None):
             "labels must be an integer Tensor of type int8, int16, int32, or int64"
         )
     if labels.dim() != 1:
-        raise ValueError(f"labels {labels} must be a 1-dimensional Tensor")
+        raise ValueError(
+            f"labels must be a 1-dimensional Tensor, i.e. (x,) but {labels} has shape {
+                labels.shape}"
+        )
     if expected_length is not None and len(labels) != expected_length:
         raise ValueError(
             f"Expected number of labels ({expected_length}) does not match actual ({
