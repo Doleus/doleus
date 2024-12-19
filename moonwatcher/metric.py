@@ -50,7 +50,7 @@ def calculate_metric_internal(
         try:
             groundtruths = torch.stack(
                 [gt.labels for gt in groundtruths_loaded]
-            )
+            ).squeeze()
 
             predictions = torch.stack(
                 [pred for pred in predictions_loaded]

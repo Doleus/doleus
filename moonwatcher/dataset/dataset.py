@@ -111,10 +111,13 @@ class Moonwatcher(MoonwatcherObject, Dataset):
 
                 # Ensure label is a torch tensor
                 if not isinstance(label, torch.Tensor):
-                    raise TypeError(
-                        f"Label must be a torch tensor, but {
-                            label} is of type {type(label)}"
-                    )
+                    try:
+                        label = torch.tensor(label)
+                    except Exception as e:
+                        raise TypeError(
+                            f"Label must be convertible to a torch tensor, but encountered an error: {e}"
+                        )
+
                 # Convert label to 1-dimensional tensor if it is a tensor scalar
                 if label.dim() == 0:
                     label = label.unsqueeze(0)
