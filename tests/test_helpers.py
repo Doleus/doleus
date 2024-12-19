@@ -15,7 +15,9 @@ def test_get_current_timestamp():
     assert timestamp[16] == ":"
     assert timestamp[19] == "."
     assert timestamp[26] == "+"
-    assert timestamp[-6:] == "+02:00"
+    # If summertime, the timezone is +02:00
+    # If wintertime, the timezone is +01:00
+    assert timestamp[-6:] in ["+02:00", "+01:00"]
 
 
 def test_convert_to_list():
