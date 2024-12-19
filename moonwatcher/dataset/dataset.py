@@ -14,7 +14,7 @@ from moonwatcher.utils.api_connector import is_api_key_and_endpoint_available
 from moonwatcher.base.base import MoonwatcherObject
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.utils.api_connector import upload_if_possible
-from moonwatcher.annotations import GroundTruths, Labels, BoundingBoxes, Predictions, PredictedLabels, PredictedBoundingBoxes
+from moonwatcher.annotations import GroundTruths, Labels, BoundingBoxes
 from moonwatcher.utils.helpers import get_current_timestamp, convert_to_list
 
 
@@ -33,8 +33,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
         name: str,
         task_type: str,
         task: str,
-        output_transform: Callable,
-        predictions: Tensor,
         num_classes: int = None,
         label_to_name: Dict = None,
         metadata: Dict[str, Any] = None,
@@ -49,8 +47,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
         :param name: the name of the dataset
         :param task_type: either classification or detection
         :param task: either binary, multiclass or multilabel
-        :param output_transform: necessary to transform dataset output into moonwatcher format
-        :param predictions: A torch tensor of predictions for the dataset.
         :param num_classes: number of classes
         :param label_to_name: dictionary mapping label ids to name
         :param metadata: dictionary of tags for the dataset
@@ -71,8 +67,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
         self.num_classes = num_classes
         self.datapoints = []
         self.datapoints_metadata = datapoints_metadata
-        self.predictions = predictions
-        self.output_transform = output_transform
 
         if self.locators:
             if not isinstance(self.locators, list):
@@ -106,19 +100,12 @@ class Moonwatcher(MoonwatcherObject, Dataset):
             desc=f"Saving annotations of dataset {self.name}.",
         ):
             data = self.dataset[index]
-            try:
-                transformed_data = self.output_transform(data)
-            except Exception as e:
-                raise Exception(
-                    f"Application of output_transform on dataset failed: {e}"
-                )
-
             if self.task_type == TaskType.CLASSIFICATION.value:
                 try:
-                    image, label = transformed_data
+                    image, label = data
                 except ValueError as e:
                     raise ValueError(
-                        f"Dataset output_transform should return two elements (image, label): {
+                        f"Dataset should return two elements(image, label): {
                             e}"
                     )
 
@@ -134,10 +121,10 @@ class Moonwatcher(MoonwatcherObject, Dataset):
                 groundtruth = Labels(datapoint_number=index, labels=label)
             elif self.task_type == TaskType.DETECTION.value:
                 try:
-                    image, bounding_boxes, labels = transformed_data
+                    image, bounding_boxes, labels = data
                 except ValueError as e:
                     raise ValueError(
-                        f"Dataset output_transform should return three elements (image, bounding_boxes, labels): {
+                        f"Dataset should return three elements(image, bounding_boxes, labels): {
                             e}"
                     )
                 groundtruth = BoundingBoxes(
@@ -154,38 +141,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
         self.groundtruths.store()
         self.store()
         self.upload_if_not()
-
-        # Handle predictions
-        # TODO: Requires cleanup
-        if self.predictions is not None:
-            if len(self.predictions) != len(self.dataset):
-                raise ValueError(
-                    f"Number of predictions ({len(
-                        self.predictions)}) does not match number of datapoints ({len(self.dataset)})"
-                )
-            self.predictions_obj = Predictions(self)
-            for index, prediction in enumerate(self.predictions):
-                if self.task_type == TaskType.CLASSIFICATION.value:
-                    # If prediction is a scalar, add an extra dimension at position 0 to make it a 1-dimensional tensor
-                    if prediction.dim() == 0:
-                        prediction = prediction.unsqueeze(0)
-                    scores = torch.tensor(prediction, dtype=torch.float32)
-                    # TODO: use torchmetrics function to determine wether we get labels (int) or scores (float)
-                    labels = (scores > 0.5).to(torch.int64)
-                    pred = PredictedLabels(
-                        datapoint_number=index, labels=labels, scores=scores)
-                elif self.task_type == TaskType.DETECTION.value:
-                    boxes, labels = prediction
-                    pred = PredictedBoundingBoxes(
-                        datapoint_number=index, boxes_xyxy=boxes, labels=labels, scores=scores
-                    )
-                else:
-                    raise ValueError(
-                        f"Unsupported task type: {
-                            self.task_type} - Select either 'classification' or 'detection'"
-                    )
-                self.predictions_obj.add(pred)
-            self.predictions_obj.store()
 
     def _upload(self):
         datapoints = []
@@ -230,25 +185,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
             )
         upload_if_possible(
             datatype=DataType.GROUNDTRUTHS.value, data=groundtruths
-        )
-
-        predictions = []
-        for prediction in self.predictions_obj:
-            predictions.append(
-                {
-                    "dataset_name": self.name,
-                    "datapoint_number": prediction.datapoint_number,
-                    "boxes": (
-                        [convert_to_list(boxes)
-                         for boxes in prediction.boxes_xyxy]
-                        if hasattr(prediction, "boxes_xyxy")
-                        else None
-                    ),
-                    "labels": convert_to_list(prediction.labels),
-                }
-            )
-        return upload_if_possible(
-            datatype=DataType.PREDICTIONS.value, data=predictions
         )
 
     def add_predefined_metadata(self, predefined_metadata_key: str):
@@ -522,14 +458,11 @@ class Slice(Moonwatcher, MoonwatcherObject):
 
         self.task_type = moonwatcher_dataset.task_type
         self.task = moonwatcher_dataset.task
-        self.output_transform = moonwatcher_dataset.output_transform
         self.metadata = moonwatcher_dataset.metadata
         self.locators = moonwatcher_dataset.locators
         self.datapoints = [moonwatcher_dataset.datapoints[i] for i in indices]
         self.datapoints_metadata = moonwatcher_dataset.datapoints_metadata
         self.groundtruths = moonwatcher_dataset.groundtruths
-        self.predictions = moonwatcher_dataset.predictions
-        self.predictions_obj = moonwatcher_dataset.predictions_obj
 
         self.description = description
         self.indices = indices
@@ -695,8 +628,6 @@ class MoonwatcherClassification(Moonwatcher):
         dataset: Dataset,
         name: str,
         task: str,
-        output_transform: Callable,
-        predictions: List[Any],
         num_classes: int = None,
         label_to_name: Dict = None,
         metadata: Dict[str, Any] = None,
@@ -709,8 +640,6 @@ class MoonwatcherClassification(Moonwatcher):
             name=name,
             task_type=TaskType.CLASSIFICATION.value,
             task=task,
-            output_transform=output_transform,
-            predictions=predictions,
             num_classes=num_classes,
             label_to_name=label_to_name,
             metadata=metadata,
@@ -726,8 +655,6 @@ class MoonwatcherDetection(Moonwatcher):
         dataset: Dataset,
         name: str,
         task: str,
-        output_transform: Callable,
-        predictions: List[Any],
         num_classes: int = None,
         label_to_name: Dict = None,
         metadata: Dict[str, Any] = None,
@@ -740,8 +667,6 @@ class MoonwatcherDetection(Moonwatcher):
             name=name,
             task_type=TaskType.DETECTION.value,
             task=task,
-            output_transform=output_transform,
-            predictions=predictions,
             num_classes=num_classes,
             label_to_name=label_to_name,
             metadata=metadata,
