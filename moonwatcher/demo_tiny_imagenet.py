@@ -111,4 +111,4 @@ check_suite = CheckSuite(
 )
 
 # Step 12) Run Checks
-test_results = check_suite.run(show=True)
+test_results = check_suite.run_all(show=True)

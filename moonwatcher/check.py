@@ -157,7 +157,7 @@ class CheckSuite():
 
         return checksuite_report
 
-    def run(self, show=None, save_report=False):
+    def run_all(self, show=None, save_report=False):
         return self.__call__(show=show, save_report=save_report)
 
 
