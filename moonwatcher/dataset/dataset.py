@@ -22,7 +22,6 @@ def find_root_dataset(dataset):
     return dataset
 
 
-# TODO: The naming is still suboptimal as it's not really descriptive.
 class Moonwatcher(Dataset):
     def __init__(
         self,

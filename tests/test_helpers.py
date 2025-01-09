@@ -1,6 +1,4 @@
-import torch
-
-from moonwatcher.utils.helpers import get_current_timestamp, convert_to_list
+from moonwatcher.utils.helpers import get_current_timestamp
 
 
 def test_get_current_timestamp():
@@ -18,17 +16,3 @@ def test_get_current_timestamp():
     # If summertime, the timezone is +02:00
     # If wintertime, the timezone is +01:00
     assert timestamp[-6:] in ["+02:00", "+01:00"]
-
-
-def test_convert_to_list():
-    items = torch.tensor([7, 8, 9])
-    assert convert_to_list(items) == items.tolist()
-
-    items = torch.tensor([7.3, 8.0, 9])
-    assert convert_to_list(items) == items.tolist()
-
-    items = torch.tensor(7)
-    assert convert_to_list(items) == [items]
-
-    items = torch.tensor(2.3)
-    assert convert_to_list(items) == [items]
