@@ -9,13 +9,11 @@ from moonwatcher.dataset.dataset import Moonwatcher, Slice
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.metric import calculate_metric
 from moonwatcher.utils.helpers import get_current_timestamp
-from moonwatcher.utils.api_connector import upload_if_possible
 from moonwatcher.utils.data import DataType
-from moonwatcher.base.base import MoonwatcherObject
 from moonwatcher.utils.data import Task, TaskType
 
 
-class Check(MoonwatcherObject):
+class Check():
     def __init__(
         self,
         name: str,
@@ -42,7 +40,7 @@ class Check(MoonwatcherObject):
         :param operator: optional if you want to test, compare symbol like >, >= etc.
         :param value: optional value to compare to
         """
-        MoonwatcherObject.__init__(self, name=name, datatype=DataType.CHECK)
+        self.name = name
         self.testing = False
         self.description = description
         self.metadata = metadata
@@ -56,33 +54,6 @@ class Check(MoonwatcherObject):
         self.metric = metric
         self.metric_parameters = metric_parameters
         self.metric_class = metric_class
-        self.store()
-
-    def _upload(self):
-        metric_dict = self.metric_parameters if self.metric_parameters is not None else {}
-        metric_dict["name"] = self.metric
-
-        data = {
-            "name": self.name,
-            "description": self.description,
-            "timestamp": get_current_timestamp(),
-            "metadata": self.metadata,
-            "testing": self.testing,
-            "operator": self.operator_str,
-            "value": self.value,
-            "dataset_name": (
-                self.dataset_or_slice.dataset_name
-                if isinstance(self.dataset_or_slice, Slice)
-                else self.dataset_or_slice.name
-            ),
-            "slice_name": (
-                self.dataset_or_slice.name
-                if isinstance(self.dataset_or_slice, Slice)
-                else None
-            ),
-            "metric": metric_dict,
-        }
-        return upload_if_possible(datatype=DataType.CHECK.value, data=data)
 
     def __call__(
         self, show=False, save_report=False
@@ -120,8 +91,6 @@ class Check(MoonwatcherObject):
 
         if show:
             visualize_report(report)
-        self.upload_if_not()
-        self._upload_report(report=report)
 
         if save_report:
             with open(
@@ -133,17 +102,8 @@ class Check(MoonwatcherObject):
     def run(self, show=False, save_report=False):
         return self.__call__(show=show, save_report=save_report)
 
-    def _upload_report(self, report):
-        data = {
-            "check_name": self.name,
-            "timestamp": get_current_timestamp(),
-            "result": report["result"],
-            "passed": report["success"],
-        }
-        return upload_if_possible(datatype=DataType.CHECK_REPORT.value, data=data)
 
-
-class CheckSuite(MoonwatcherObject):
+class CheckSuite():
     def __init__(
         self,
         name: str,
@@ -161,24 +121,12 @@ class CheckSuite(MoonwatcherObject):
         :param metadata: optional tags
         :param show: whether to print results in commandline
         """
-        MoonwatcherObject.__init__(self, name=name, datatype=DataType.CHECK)
+        self.name = name
         self.description = description
         self.metadata = metadata
         self.checks = checks
         self.testing = any(check.testing for check in self.checks)
         self.show = show
-        self.store()
-
-    def _upload(self):
-        data = {
-            "name": self.name,
-            "description": self.description,
-            "timestamp": get_current_timestamp(),
-            "metadata": self.metadata,
-            "testing": self.testing,
-            "check_names": [check.name for check in self.checks],
-        }
-        return upload_if_possible(datatype=DataType.CHECKSUITE.value, data=data)
 
     def __call__(self, show=None, save_report=False):
         total_success = all(check.testing and check()[
@@ -200,8 +148,6 @@ class CheckSuite(MoonwatcherObject):
 
         if show:
             visualize_report(checksuite_report)
-        self.upload_if_not()
-        self._upload_report(report=checksuite_report)
         if save_report:
             with open(
                 f"checksuite_{self.name}_report.json",
@@ -214,14 +160,6 @@ class CheckSuite(MoonwatcherObject):
 
     def run(self, show=None, save_report=False):
         return self.__call__(show=show, save_report=save_report)
-
-    def _upload_report(self, report):
-        data = {
-            "checksuite_name": self.name,
-            "timestamp": get_current_timestamp(),
-            "passed": report["success"],
-        }
-        return upload_if_possible(datatype=DataType.CHECKSUITE_REPORT.value, data=data)
 
 
 class ReportVisualizer:

@@ -2,8 +2,6 @@ from typing import List, Union, Optional
 
 import torch
 from torch import Tensor
-from moonwatcher.utils.data import DataType
-from moonwatcher.base.base import MoonwatcherObject
 
 
 def validate_datapoint_number(datapoint_number: int):
@@ -212,7 +210,7 @@ class Annotations:
         return iter(self.annotations)
 
 
-class Predictions(Annotations, MoonwatcherObject):
+class Predictions(Annotations):
     def __init__(
         self,
         dataset,
@@ -234,12 +232,9 @@ class Predictions(Annotations, MoonwatcherObject):
                     "All predictions must be instances of PredictedBoundingBoxes or all instances of PredictedLabels."
                 )
         Annotations.__init__(self, annotations=predictions)
-        MoonwatcherObject.__init__(
-            self, name=dataset.name, datatype=DataType.PREDICTIONS
-        )
 
 
-class GroundTruths(Annotations, MoonwatcherObject):
+class GroundTruths(Annotations):
     def __init__(
         self, dataset, groundtruths: List[Union[BoundingBoxes, Labels]] = None
     ):
@@ -254,6 +249,3 @@ class GroundTruths(Annotations, MoonwatcherObject):
                     "All ground truths must be instances of BoundingBoxes or Labels (not their Predicted subclasses)."
                 )
         Annotations.__init__(self, annotations=groundtruths)
-        MoonwatcherObject.__init__(
-            self, name=dataset.name, datatype=DataType.GROUNDTRUTHS
-        )

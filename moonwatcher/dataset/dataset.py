@@ -9,11 +9,9 @@ from torch.utils.data import Dataset, Subset
 
 from moonwatcher.datapoint import Datapoint
 from moonwatcher.utils.data import OPERATOR_DICT
-from moonwatcher.utils.data import DataType, TaskType, Task
+from moonwatcher.utils.data import DataType, TaskType
 from moonwatcher.utils.api_connector import is_api_key_and_endpoint_available
-from moonwatcher.base.base import MoonwatcherObject
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
-from moonwatcher.utils.api_connector import upload_if_possible
 from moonwatcher.annotations import GroundTruths, Labels, BoundingBoxes
 from moonwatcher.utils.helpers import get_current_timestamp, convert_to_list
 
@@ -26,7 +24,7 @@ def find_root_dataset(dataset):
 
 
 # TODO: The naming is still suboptimal as it's not really descriptive.
-class Moonwatcher(MoonwatcherObject, Dataset):
+class Moonwatcher(Dataset):
     def __init__(
         self,
         dataset: Dataset,
@@ -54,8 +52,8 @@ class Moonwatcher(MoonwatcherObject, Dataset):
         :param locators: URLs for every image to display in webapp
         :param datapoints_metadata: metadata for every datapoint
         """
-        MoonwatcherObject.__init__(self, name=name, datatype=DataType.DATASET)
         Dataset.__init__(self)
+        self.name = name
         self.dataset = dataset
         self.label_to_name = label_to_name
         self.task_type = task_type
@@ -141,55 +139,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
 
             self.groundtruths.add(groundtruth)
 
-        self.groundtruths.store()
-        self.store()
-        self.upload_if_not()
-
-    def _upload(self):
-        datapoints = []
-        if not is_api_key_and_endpoint_available():
-            return False
-        if self.datapoints[0].locator is None:
-            raise ValueError(
-                "Please provide locators for the images if you want to upload the dataset."
-            )
-        for datapoint in self.datapoints:
-            datapoints.append(
-                {
-                    "locator": datapoint.locator,
-                    "metadata": datapoint.metadata,
-                }
-            )
-        data = {
-            "name": self.name,
-            "description": self.description,
-            "timestamp": get_current_timestamp(),
-            "metadata": self.metadata,
-            "label_to_name": self.label_to_name,
-            "datapoints": datapoints,
-            "task_type": self.task_type,
-        }
-        upload_if_possible(datatype=DataType.DATASET.value, data=data)
-
-        groundtruths = []
-        for groundtruth in self.groundtruths:
-            groundtruths.append(
-                {
-                    "dataset_name": self.name,
-                    "datapoint_number": groundtruth.datapoint_number,
-                    "boxes": (
-                        [convert_to_list(boxes)
-                         for boxes in groundtruth.boxes_xyxy]
-                        if hasattr(groundtruth, "boxes_xyxy")
-                        else None
-                    ),
-                    "labels": convert_to_list(groundtruth.labels),
-                }
-            )
-        upload_if_possible(
-            datatype=DataType.GROUNDTRUTHS.value, data=groundtruths
-        )
-
     def add_predefined_metadata(self, predefined_metadata_key: str):
         """
         Use a predefined metadata creation function to add metadata "brightness", "contrast", "saturation", "resolution"
@@ -230,7 +179,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
                 )
 
         root_dataset.transform = transform
-        self.store(overwrite=True)
 
     def add_metadata_from_list(self, metadata_list: List[Dict[str, Any]]):
         """
@@ -242,7 +190,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
             if i < len(self.datapoints):
                 for key, value in metadata.items():
                     self.datapoints[i].add_metadata(key=key, value=value)
-        self.store(overwrite=True)
 
     def add_metadata_from_groundtruths(self, class_name: str):
         """
@@ -274,8 +221,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
                 if isinstance(groundtruth, Labels):
                     count = (groundtruth.labels == class_id).sum().item()
                     datapoint.add_metadata(key=f"{class_name}", value=count)
-
-        self.store(overwrite=True)
 
     def add_metadata_custom(self, metadata_key: str, metadata_func: Callable):
         """
@@ -318,7 +263,6 @@ class Moonwatcher(MoonwatcherObject, Dataset):
                 )
 
         root_dataset.transform = transform
-        self.store(overwrite=True)
 
     def _generate_filename(self, metadata_key: str, operator_str: str, value: Any):
         abbreviations = {
@@ -445,7 +389,7 @@ class Moonwatcher(MoonwatcherObject, Dataset):
         self.__dict__.update(state)
 
 
-class Slice(Moonwatcher, MoonwatcherObject):
+class Slice(Moonwatcher):
     def __init__(
         self,
         moonwatcher_dataset: Moonwatcher,
@@ -457,7 +401,7 @@ class Slice(Moonwatcher, MoonwatcherObject):
         self.dataset_name = (
             moonwatcher_dataset.name
         )
-        MoonwatcherObject.__init__(self, name=name, datatype=DataType.SLICE)
+        self.name = name
 
         self.task_type = moonwatcher_dataset.task_type
         self.task = moonwatcher_dataset.task
@@ -475,20 +419,6 @@ class Slice(Moonwatcher, MoonwatcherObject):
 
         if self.locators:
             self.locators = [self.locators[i] for i in indices]
-
-        self.store()
-        self.upload_if_not()
-
-    def _upload(self):
-        data = {
-            "dataset_name": self.dataset_name,
-            "name": self.name,
-            "description": self.description,
-            "timestamp": get_current_timestamp(),
-            "metadata": self.metadata,
-            "datapoint_numbers": self.indices,
-        }
-        return upload_if_possible(datatype=DataType.SLICE.value, data=data)
 
     def slice_by_threshold(
         self,
