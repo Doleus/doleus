@@ -1,4 +1,6 @@
-from typing import Union
+# metric.py
+
+from typing import Union, Dict, Any, List
 
 import torch
 import torchmetrics
@@ -7,19 +9,35 @@ from moonwatcher.utils.data import TaskType
 from moonwatcher.dataset.dataset import Moonwatcher, Slice
 
 
-def get_original_indices(dataset_or_slice):
+def get_original_indices(dataset_or_slice: Union[Moonwatcher, Slice]) -> List[int]:
+    """
+    Recursively retrieve the 'original' indices from a dataset or slice.
+
+    :param dataset_or_slice: either a Moonwatcher object or a Slice
+    :return: list of integer indices corresponding to the underlying data items
+    """
     if isinstance(dataset_or_slice, Slice):
         parent_indices = get_original_indices(
             dataset_or_slice.original_dataset)
+        # The slice's indices refer to the parent's indices, so map them
         return [parent_indices[i] for i in dataset_or_slice.indices]
     elif isinstance(dataset_or_slice, Moonwatcher):
         return list(range(len(dataset_or_slice.dataset)))
     else:
-        raise TypeError("Unsupported dataset type")
+        raise TypeError("Unsupported dataset type for get_original_indices.")
 
 
-def load_data(dataset_or_slice: Union[Moonwatcher, Slice], predictions):
+def load_data(
+    dataset_or_slice: Union[Moonwatcher, Slice],
+    predictions: Union[List[Any], torch.Tensor],
+):
+    """
+    Given a dataset (or slice) plus a predictions array (or list),
+    extract the relevant ground truths and predictions for the portion of the dataset.
+    """
     relevant_ids = get_original_indices(dataset_or_slice=dataset_or_slice)
+
+    # If it's a Slice, the 'original_dataset' is the reference to the entire dataset
     dataset = (
         dataset_or_slice.original_dataset
         if isinstance(dataset_or_slice, Slice)
@@ -32,152 +50,223 @@ def load_data(dataset_or_slice: Union[Moonwatcher, Slice], predictions):
     return relevant_ids, dataset, groundtruths_loaded, predictions_loaded
 
 
-def calculate_metric_internal(
-    relevant_ids,
-    dataset,
+def _parse_metric_class(
+    metric_class: Any, dataset
+) -> int:
+    """
+    If metric_class is a string, convert it to the corresponding label ID.
+    If metric_class is already an int, just return it.
+    Raise an error if the class name is not found in dataset.label_to_name.
+    """
+    if metric_class is None:
+        return None
+
+    # If dataset.label_to_name is not provided, we cannot parse string class names
+    if dataset.label_to_name is None:
+        raise ValueError(
+            "label_to_name mapping is not provided, cannot parse metric_class.")
+
+    # If it's already an int, return it directly
+    if isinstance(metric_class, int):
+        return metric_class
+
+    # If it's a string, find the corresponding label ID
+    if isinstance(metric_class, str):
+        if metric_class not in dataset.label_to_name.values():
+            raise ValueError(
+                f"Class name '{metric_class}' not found in label_to_name mapping.")
+        # Convert from class name -> label id
+        for k, v in dataset.label_to_name.items():
+            if v == metric_class:
+                return int(k)
+
+    # If none of the above, user passed an unsupported type
+    raise TypeError(f"Unsupported type for metric_class: {type(metric_class)}")
+
+
+def _calculate_classification_metric(
     groundtruths_loaded,
     predictions_loaded,
+    dataset,
     metric: str,
-    metric_parameters=None,
-    metric_class=None,
-):
-    if metric_parameters is None:
-        metric_parameters = {}
+    metric_parameters: Dict[str, Any],
+    metric_class: Any,
+) -> float:
+    """
+    Compute classification metrics using torchmetrics.functional, handling
+    optional 'metric_class' for per-class values (e.g., per-class Precision).
+    """
+    try:
+        # groundtruths_loaded: list of annotation objects (Labels). E.g. each has .labels
+        # predictions_loaded: list of torch.Tensor or same shape
+        gt_tensor = torch.stack(
+            [gt.labels for gt in groundtruths_loaded]).squeeze()
+        pred_tensor = torch.stack([pred for pred in predictions_loaded])
 
-    metric_function = _METRIC_FUNCTIONS[metric]
+        # Ensure a default 'average' if not provided
+        if "average" not in metric_parameters:
+            metric_parameters["average"] = "macro"
 
-    if dataset.task_type == TaskType.CLASSIFICATION.value:
-        try:
-            groundtruths = torch.stack(
-                [gt.labels for gt in groundtruths_loaded]
-            ).squeeze()
+        # If a class is specified, adjust parameters accordingly
+        if metric_class is not None:
+            metric_class_id = _parse_metric_class(metric_class, dataset)
+            metric_parameters["average"] = "none"
+        else:
+            metric_class_id = None
 
-            predictions = torch.stack(
-                [pred for pred in predictions_loaded]
-            )
+        # call the torchmetrics functional metric
+        metric_function = _METRIC_FUNCTIONS[metric]
+        metric_value = metric_function(
+            pred_tensor,
+            gt_tensor,
+            task=dataset.task,
+            num_classes=dataset.num_classes,
+            **metric_parameters,
+        )
 
-            if "average" not in metric_parameters:
-                metric_parameters["average"] = "macro"
+        # If user requested a specific class, pick that index out
+        if metric_class_id is not None:
+            metric_value = metric_value[metric_class_id]
 
-            if metric_class is not None:
-                metric_parameters["average"] = "none"
-                if isinstance(metric_class, str):
-                    if dataset.label_to_name is None:
-                        raise ValueError(
-                            "label_to_name mapping is not provided.")
-                    if metric_class not in dataset.label_to_name.values():
-                        raise ValueError(
-                            f"Class name '{metric_class}' not found in label_to_name mapping."
-                        )
-                    metric_class = list(dataset.label_to_name.keys())[
-                        list(dataset.label_to_name.values()).index(metric_class)
-                    ]
-                metric_class = int(metric_class)
-            metric_value = metric_function(
-                predictions,
-                groundtruths,
-                task=dataset.task,
-                # TODO: Naming, num_classes or num_labels?
-                num_classes=dataset.num_classes,
-                **metric_parameters,
-            )
+        if hasattr(metric_value, "item"):
+            metric_value = metric_value.item()
 
-            if metric_class is not None:
-                metric_value = metric_value[metric_class]
+        return float(metric_value)
 
-        except Exception as e:
-            raise Exception(f"Error occurred during metric computation: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Error in classification metric computation: {e}")
 
-    elif dataset.task_type == TaskType.DETECTION.value:
-        try:
-            groundtruths = [gt.to_dict() for gt in groundtruths_loaded]
-            predictions = [pred.to_dict() for pred in predictions_loaded]
 
-            for pred in predictions:
-                pred['boxes'] = torch.tensor(
-                    pred['boxes'], dtype=torch.float32)
-                pred['labels'] = torch.tensor(
-                    pred['labels'], dtype=torch.int64)
-                if 'scores' in pred:
-                    pred['scores'] = torch.tensor(
-                        pred['scores'], dtype=torch.float32)
+def _convert_detection_dicts(annotations_list: List[Dict[str, Any]]) -> None:
+    """
+    In-place convert the bounding box dicts to proper torch.Tensor format.
+    Each dictionary is expected to have 'boxes' and 'labels'.
+    If it has 'scores', convert that as well.
+    """
+    for ann in annotations_list:
+        ann["boxes"] = torch.tensor(ann["boxes"], dtype=torch.float32)
+        ann["labels"] = torch.tensor(ann["labels"], dtype=torch.int64)
+        if "scores" in ann:
+            ann["scores"] = torch.tensor(ann["scores"], dtype=torch.float32)
 
-            for gt in groundtruths:
-                gt['boxes'] = torch.tensor(gt['boxes'], dtype=torch.float32)
-                gt['labels'] = torch.tensor(gt['labels'], dtype=torch.int64)
 
-            if metric_class is not None:
-                metric_parameters["class_metrics"] = True
+def _calculate_detection_metric(
+    groundtruths_loaded,
+    predictions_loaded,
+    dataset,
+    metric: str,
+    metric_parameters: Dict[str, Any],
+    metric_class: Any,
+) -> float:
+    """
+    Compute detection metrics using the MeanAveragePrecision or IoU-based
+    metrics from torchmetrics.detection.
+    """
+    try:
+        # Convert each groundtruth/prediction to a dict with Tensors
+        gt_list = [gt.to_dict() for gt in groundtruths_loaded]
+        pred_list = [pred.to_dict() for pred in predictions_loaded]
 
+        _convert_detection_dicts(pred_list)
+        _convert_detection_dicts(gt_list)
+
+        # If user requests a specific class, set class_metrics=True
+        if metric_class is not None:
+            metric_parameters["class_metrics"] = True
+            metric_class_id = _parse_metric_class(metric_class, dataset)
+        else:
+            metric_class_id = None
+
+        # For mAP and variations, we need to specify iou_type="bbox"
+        if metric in ["mAP", "mAP_small", "mAP_medium", "mAP_large"]:
+            metric_parameters["iou_type"] = "bbox"
+
+        metric_function = _METRIC_FUNCTIONS[metric](**metric_parameters)
+        metric_function.update(pred_list, gt_list)
+        metric_value_dict = metric_function.compute()
+
+        # If the user requested a particular class, extract that result
+        if metric_class_id is not None:
+            # For mAP-based metrics
             if metric in ["mAP", "mAP_small", "mAP_medium", "mAP_large"]:
-                metric_parameters["iou_type"] = "bbox"
-
-            metric_function_instance = metric_function(**metric_parameters)
-            metric_function_instance.update(predictions, groundtruths)
-            metric_value = metric_function_instance.compute()
-
-            if metric_class is not None:
-                if isinstance(metric_class, str):
-                    if dataset.label_to_name is None:
-                        raise ValueError(
-                            "label_to_name mapping is not provided.")
-                    if metric_class not in dataset.label_to_name.values():
-                        raise ValueError(
-                            f"Class name '{metric_class}' not found in label_to_name mapping."
-                        )
-                    metric_class = list(dataset.label_to_name.keys())[
-                        list(dataset.label_to_name.values()).index(metric_class)
-                    ]
-                metric_class = int(metric_class)
-
-                if metric in ["mAP", "mAP_small", "mAP_medium", "mAP_large"]:
-                    index = torch.where(
-                        metric_value["classes"] == metric_class)[0]
-                    metric_value = (
-                        metric_value["map_per_class"][index].item()
-                        if index.numel() > 0
-                        else 0.0
-                    )
-                    metric_value = 0.0 if metric_value < 0.0 else metric_value
+                # We look for where metric_value_dict["classes"] == metric_class_id
+                index = torch.where(
+                    metric_value_dict["classes"] == metric_class_id)[0]
+                if index.numel() > 0:
+                    result = metric_value_dict["map_per_class"][index].item()
+                    result = 0.0 if result < 0.0 else result  # clamp negative
                 else:
-                    metric_class_key = f"{_METRIC_KEYS[metric]}/cl_{metric_class}"
-                    metric_value = metric_value.get(metric_class_key, 0.0)
+                    result = 0.0
             else:
-                metric_value = metric_value[_METRIC_KEYS[metric]]
+                # e.g., IntersectionOverUnion => look up "iou/cl_{id}" or something
+                key = f"{_METRIC_KEYS[metric]}/cl_{metric_class_id}"
+                result = metric_value_dict.get(key, 0.0)
+        else:
+            # No class specified, just get the top-level metric
+            result = metric_value_dict[_METRIC_KEYS[metric]]
 
-        except Exception as e:
-            raise Exception(f"Error occurred during metric computation: {e}")
-    else:
-        raise ValueError(f"Unsupported task type: {dataset.task_type}")
+        if hasattr(result, "item"):
+            result = result.item()
+        return round(float(result), 5)
 
-    if hasattr(metric_value, "item"):
-        metric_value = metric_value.item()
-
-    return round(metric_value, 5)
+    except Exception as e:
+        raise RuntimeError(f"Error in detection metric computation: {e}")
 
 
 def calculate_metric(
     dataset_or_slice: Union[Moonwatcher, Slice],
     predictions: torch.Tensor,
     metric: str,
-    metric_parameters=None,
-    metric_class=None,
-):
+    metric_parameters: Dict[str, Any] = None,
+    metric_class: Any = None,
+) -> float:
+    """
+    High-level function to compute a metric for classification or detection tasks.
+
+    :param dataset_or_slice: either a full Moonwatcher dataset or a slice
+    :param predictions: a torch.Tensor or list of predictions (shape depends on classification/detection)
+    :param metric: a string key, e.g., "Accuracy", "mAP", "IntersectionOverUnion", etc.
+    :param metric_parameters: optional dictionary of parameters to be passed to torchmetrics
+    :param metric_class: optional class (as an int label or string name) for per-class metrics
+    :return: A float value representing the computed metric
+    """
+    if metric_parameters is None:
+        metric_parameters = {}
+
+    # Load relevant subset of ground truths and predictions
     relevant_ids, dataset, groundtruths_loaded, predictions_loaded = load_data(
         dataset_or_slice, predictions
     )
 
-    return calculate_metric_internal(
-        relevant_ids,
-        dataset,
-        groundtruths_loaded,
-        predictions_loaded,
-        metric,
-        metric_parameters,
-        metric_class,
-    )
+    # Branch based on classification vs. detection
+    if dataset.task_type == TaskType.CLASSIFICATION.value:
+        return round(
+            _calculate_classification_metric(
+                groundtruths_loaded,
+                predictions_loaded,
+                dataset,
+                metric,
+                metric_parameters,
+                metric_class,
+            ),
+            5,
+        )
+    elif dataset.task_type == TaskType.DETECTION.value:
+        return _calculate_detection_metric(
+            groundtruths_loaded,
+            predictions_loaded,
+            dataset,
+            metric,
+            metric_parameters,
+            metric_class,
+        )
+    else:
+        raise ValueError(f"Unsupported task type: {dataset.task_type}")
 
 
+# ---------------------------------------------------------------------
+# Define or extend your metric registry and the related keys
+# ---------------------------------------------------------------------
 _METRIC_FUNCTIONS = {
     "Accuracy": torchmetrics.functional.accuracy,
     "Precision": torchmetrics.functional.precision,
