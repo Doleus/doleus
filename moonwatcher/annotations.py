@@ -21,7 +21,7 @@ def validate_boxes_xyxy(boxes_xyxy: Tensor):
             "Bounding boxes must be a Tensor of shape (num_boxes, 4)")
     if not (boxes_xyxy.dim() == 2 and boxes_xyxy.shape[1] == 4):
         raise ValueError(
-            f"Bounding boxes must be a Tensor of shape (num_boxes, 4) but has shape {
+            f"Bounding boxes must be a Tensor of shape(num_boxes, 4) but has shape {
                 boxes_xyxy.shape}"
         )
     for box in boxes_xyxy:
@@ -50,7 +50,7 @@ def validate_labels(labels: Tensor, expected_length: Optional[int] = None):
         )
     if expected_length is not None and len(labels) != expected_length:
         raise ValueError(
-            f"Expected number of labels ({expected_length}) does not match actual ({
+            f"Expected number of labels({expected_length}) does not match actual({
                 len(labels)})"
         )
 
@@ -135,7 +135,7 @@ class Labels(Annotation):
         :param labels: A 1-dimensional integer tensor of shape (x,) representing the label(s).
         """
         Annotation.__init__(self, datapoint_number)
-        validate_labels(labels)
+        # validate_labels(labels)
         self.labels = labels
 
 
@@ -148,7 +148,7 @@ class PredictedLabels(Labels):
         :param scores: A float tensor representing the confidence scores for each class.
         """
         Labels.__init__(self, datapoint_number, labels)
-        validate_scores(scores, expected_length=len(labels))
+        # validate_scores(scores, expected_length=len(labels))
         self.scores = scores
 
 

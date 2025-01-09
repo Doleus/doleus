@@ -18,7 +18,7 @@ def get_original_indices(dataset_or_slice):
         raise TypeError("Unsupported dataset type")
 
 
-def load_data(dataset_or_slice: Union[Moonwatcher, Slice]):
+def load_data(dataset_or_slice: Union[Moonwatcher, Slice], predictions):
     relevant_ids = get_original_indices(dataset_or_slice=dataset_or_slice)
     dataset = (
         dataset_or_slice.original_dataset
@@ -27,7 +27,7 @@ def load_data(dataset_or_slice: Union[Moonwatcher, Slice]):
     )
 
     groundtruths_loaded = [dataset.groundtruths.get(i) for i in relevant_ids]
-    predictions_loaded = [dataset.predictions_obj.get(i) for i in relevant_ids]
+    predictions_loaded = [predictions[i] for i in relevant_ids]
 
     return relevant_ids, dataset, groundtruths_loaded, predictions_loaded
 
@@ -50,10 +50,10 @@ def calculate_metric_internal(
         try:
             groundtruths = torch.stack(
                 [gt.labels for gt in groundtruths_loaded]
-            )
+            ).squeeze()
 
             predictions = torch.stack(
-                [pred.labels for pred in predictions_loaded]
+                [pred for pred in predictions_loaded]
             )
 
             if "average" not in metric_parameters:
@@ -73,12 +73,12 @@ def calculate_metric_internal(
                         list(dataset.label_to_name.values()).index(metric_class)
                     ]
                 metric_class = int(metric_class)
-
             metric_value = metric_function(
                 predictions,
                 groundtruths,
                 task=dataset.task,
-                num_labels=dataset.num_classes,
+                # TODO: Naming, num_classes or num_labels?
+                num_classes=dataset.num_classes,
                 **metric_parameters,
             )
 
@@ -158,12 +158,13 @@ def calculate_metric_internal(
 
 def calculate_metric(
     dataset_or_slice: Union[Moonwatcher, Slice],
+    predictions: torch.Tensor,
     metric: str,
     metric_parameters=None,
     metric_class=None,
 ):
     relevant_ids, dataset, groundtruths_loaded, predictions_loaded = load_data(
-        dataset_or_slice
+        dataset_or_slice, predictions
     )
 
     return calculate_metric_internal(

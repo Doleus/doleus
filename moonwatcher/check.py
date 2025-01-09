@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Optional, List, Union, Dict, Any
 
+import torch
+
 from moonwatcher.utils.data import OPERATOR_DICT
 from moonwatcher.dataset.dataset import Moonwatcher, Slice
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
@@ -18,6 +20,7 @@ class Check(MoonwatcherObject):
         self,
         name: str,
         dataset_or_slice: Union[Moonwatcher, Slice],
+        predictions: torch.Tensor,
         metric: str,
         metric_parameters: Optional[Dict] = None,
         metric_class: str = None,
@@ -49,6 +52,7 @@ class Check(MoonwatcherObject):
         self.operator = operator
         self.value = value
         self.dataset_or_slice = dataset_or_slice
+        self.predictions = predictions
         self.metric = metric
         self.metric_parameters = metric_parameters
         self.metric_class = metric_class
@@ -85,6 +89,7 @@ class Check(MoonwatcherObject):
     ) -> Dict[str, Any]:
         result = calculate_metric(
             dataset_or_slice=self.dataset_or_slice,
+            predictions=self.predictions,
             metric=self.metric,
             metric_parameters=self.metric_parameters,
             metric_class=self.metric_class,
@@ -124,6 +129,9 @@ class Check(MoonwatcherObject):
             ) as f:
                 json.dump(obj=report, fp=f, indent=4)
         return report
+
+    def run(self, show=False, save_report=False):
+        return self.__call__(show=show, save_report=save_report)
 
     def _upload_report(self, report):
         data = {
@@ -204,6 +212,9 @@ class CheckSuite(MoonwatcherObject):
 
         return checksuite_report
 
+    def run(self, show=None, save_report=False):
+        return self.__call__(show=show, save_report=save_report)
+
     def _upload_report(self, report):
         data = {
             "checksuite_name": self.name,
@@ -278,6 +289,7 @@ def visualize_report(report):
 
 def automated_checking(
     mw_dataset: Moonwatcher,
+    predictions: torch.Tensor,
     metadata_keys: List[str] = None,
     metadata_list: List[Dict[str, Any]] = None,
     slicing_conditions: List[Dict[str, Any]] = None,
@@ -344,6 +356,7 @@ def automated_checking(
             new_check = Check(
                 name=check_name,
                 dataset_or_slice=mw_slice,
+                predictions=predictions,
                 metric=check["metric"],
                 metric_class=check.get("metric_class", None),
                 operator=check.get("operator", None),
@@ -364,6 +377,7 @@ def automated_checking(
         new_check = Check(
             name=check_name,
             dataset_or_slice=mw_dataset,
+            predictions=predictions,
             metric=check["metric"],
             metric_class=check.get("metric_class", None),
             operator=check.get("operator", None),

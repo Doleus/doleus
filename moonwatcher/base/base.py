@@ -15,7 +15,8 @@ class MoonwatcherObject:
                 f"Invalid name '{self.name}' for {datatype.value}! Only use a-z, A-Z, 0-9, hyphen (-) or underscore (_)!"
             )
         if self.exists_already():
-            raise ValueError(f"{datatype.value} with name {self.name} already exists!")
+            raise ValueError(
+                f"{datatype.value} with name {self.name} already exists!")
         pass
 
     @abstractmethod
