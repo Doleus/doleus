@@ -20,3 +20,7 @@ coco/
 stl10_binary.tar.gz
 stl10_binary
 playground/
+tiny-imagenet-200/
+
+*.pth
+*.ipynb
