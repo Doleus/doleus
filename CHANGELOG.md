@@ -1,48 +1,75 @@
 # CHANGELOG
 
 
+## v0.1.0 (2025-01-09)
+
+### Bug Fixes
+
+- Corrected handling of predictions
+  ([`53d4d03`](https://github.com/iamheinrich/doleus/commit/53d4d032a0ce466072a7e878bc1c673d315b9bda))
+
+### Continuous Integration
+
+- Allow automatic releases
+  ([`4ec5a21`](https://github.com/iamheinrich/doleus/commit/4ec5a2182c83856cfef9309a857438041c460b02))
+
+- Bug fix
+  ([`7099ecf`](https://github.com/iamheinrich/doleus/commit/7099ecf4616b7ff4399db7eb0c7034909cee9648))
+
+- Remove automatic release
+  ([`61dae05`](https://github.com/iamheinrich/doleus/commit/61dae05e5d2d2c663c3d116b7f77acdb46edfa6d))
+
+- Update changelog only
+  ([`9b7d939`](https://github.com/iamheinrich/doleus/commit/9b7d939b64455d290ba5d56e6a4fa9b7c6cba37a))
+
+### Features
+
+- Add run method to checks
+  ([`6645fcb`](https://github.com/iamheinrich/doleus/commit/6645fcbb005aad6ee2f79b43356d31049847c4f0))
+
+- Added tiny imagenet demo
+  ([`7540c7c`](https://github.com/iamheinrich/doleus/commit/7540c7cef5296f86f444ac459af8556793c06ec5))
+
+### Refactoring
+
+- Added code to convert 0-d scalar tensors to 1-d tensors to adhere to annotations.py. dataset.py is
+  now only accepting tensors, no lists.
+  ([`663b88a`](https://github.com/iamheinrich/doleus/commit/663b88accdb02d2835d050d650aed6b32bff98ba))
+
+- Added more informative error messages
+  ([`5ee2b45`](https://github.com/iamheinrich/doleus/commit/5ee2b451d1afc941a57a023a364eee30f4ac03c8))
+
+- Added more validation checks and grouped them in functions
+  ([`7c7e0e0`](https://github.com/iamheinrich/doleus/commit/7c7e0e0c6d9e173ce6a5729c849d4800814a3ce9))
+
+- Split moonwatcher into classification and detection object
+  ([`d6e786c`](https://github.com/iamheinrich/doleus/commit/d6e786c26a2503f6f7c1a0f0d8c17565a97b184e))
+
+### Testing
+
+- Added test for 0-dimensional scalar tensors
+  ([`070f100`](https://github.com/iamheinrich/doleus/commit/070f100171909bfd7bb905bcf6621f3801e8f6ec))
+
+- Updated tests
+  ([`0838969`](https://github.com/iamheinrich/doleus/commit/0838969adcb0949cd91c05916771214b29ffc53a))
+
+- Updated tests for annotations.py
+  ([`aae01fc`](https://github.com/iamheinrich/doleus/commit/aae01fc611a6252b4a37e390274d90eb5a242999))
+
+
 ## v0.0.0 (2024-10-28)
 
 ### Continuous Integration
 
-* ci: added automatic changelog workflow ([`8579ec7`](https://github.com/iamheinrich/doleus/commit/8579ec70826e268a16a435eebc2e426b6060b26e))
+- Added automatic changelog workflow
+  ([`8579ec7`](https://github.com/iamheinrich/doleus/commit/8579ec70826e268a16a435eebc2e426b6060b26e))
 
 ### Documentation
 
-* docs: updated readme to include pre-commit hooks ([`24a2237`](https://github.com/iamheinrich/doleus/commit/24a2237c794cd0d6e4ba532e36c99e25d2814626))
+- Updated readme to include pre-commit hooks
+  ([`24a2237`](https://github.com/iamheinrich/doleus/commit/24a2237c794cd0d6e4ba532e36c99e25d2814626))
 
 ### Refactoring
 
-* refactor: consolidate MoonwatcherDataset and MoonwatcherModel into unified Moonwatcher object ([`c231db6`](https://github.com/iamheinrich/doleus/commit/c231db6a26d5644b54a0d18b36fc8d2849704cfa))
-
-### Unknown
-
-* Merge pull request #14 from iamheinrich/readme
-
-docs: updated readme to include pre-commit hooks ([`e1c76e5`](https://github.com/iamheinrich/doleus/commit/e1c76e50a048c64849ec78e523be9c5c3ed4c123))
-
-* Merge pull request #12 from iamheinrich/1_create_model_object
-
-Restructure model object ([`6577abd`](https://github.com/iamheinrich/doleus/commit/6577abd6f949b3ea9d56bccdcf69c596fbf61b28))
-
-* Resolve merge conflicts ([`def078e`](https://github.com/iamheinrich/doleus/commit/def078e88eecf2000d872306e0111130ad45fe87))
-
-* Adapted the Model class so that it automatically converts predictions into the Predictions object. Object detection is still missing and no tests are written yet. ([`52ee283`](https://github.com/iamheinrich/doleus/commit/52ee283527b9fd9058b27fa7357171e5a8694fc4))
-
-* Managed to get one test to work. Simply run the breast cancer demo. However, there are still quite a few todos. We need to bring the predictions that the user passes to the dataset into the required format. That will likely be the biggeset task, because we want to do it in a smart, clean and understandable way. Moreover, there's still quite a bit of clean up to do. Committing for review. ([`feaf95c`](https://github.com/iamheinrich/doleus/commit/feaf95c568e7434e5f28b32049477dd2b3b464ee))
-
-* Created breast cancer detection demo. Labels class was changed to accept more than just a 1-d tensor to allow for multi-class classification.-0 ([`542838f`](https://github.com/iamheinrich/doleus/commit/542838f4e8e04a0eeed78d087d12167564ad820b))
-
-* Merge pull request #1 from moonwatcher-ai/feature/add-class-metrics
-
-Feature/add class metrics ([`fe8af69`](https://github.com/iamheinrich/doleus/commit/fe8af69cabecfdbbbf4277e073ae0f84a6bb7259))
-
-* Added groundtruth-based slicing ([`da769cb`](https://github.com/iamheinrich/doleus/commit/da769cbc574db08af04ae827bf618e1f6fc0d871))
-
-* Added per-class metrics for classification metrics ([`a9b6705`](https://github.com/iamheinrich/doleus/commit/a9b670596f064e5a171d3e5c325c529583dfb85f))
-
-* Added per-class metrics for mAP ([`873a885`](https://github.com/iamheinrich/doleus/commit/873a8850209b3ebc176efe3f43a4aeca9630178c))
-
-* Added per-class metrics ([`1e8c433`](https://github.com/iamheinrich/doleus/commit/1e8c43359297beefa9c4c0cdec5eda292655bcf8))
-
-* 0.1.0-alpha ([`13f8dc4`](https://github.com/iamheinrich/doleus/commit/13f8dc4a73df92cb9e1da34092f46e597f5affc4))
+- Consolidate MoonwatcherDataset and MoonwatcherModel into unified Moonwatcher object
+  ([`c231db6`](https://github.com/iamheinrich/doleus/commit/c231db6a26d5644b54a0d18b36fc8d2849704cfa))
