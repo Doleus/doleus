@@ -6,11 +6,11 @@ from torch import Tensor
 
 def validate_datapoint_number(datapoint_number: int):
     if not isinstance(datapoint_number, int):
-        raise TypeError(f"Datapoint number must be an integer but got {
-                        datapoint_number}")
+        raise TypeError(
+            f"Datapoint number must be an integer but got {datapoint_number}")
     if datapoint_number < 0:
-        raise ValueError(f"Datapoint number must be a positive integer but got {
-                         datapoint_number}")
+        raise ValueError(
+            f"Datapoint number must be a positive integer but got {datapoint_number}")
 
 
 def validate_boxes_xyxy(boxes_xyxy: Tensor):
@@ -19,18 +19,17 @@ def validate_boxes_xyxy(boxes_xyxy: Tensor):
             "Bounding boxes must be a Tensor of shape (num_boxes, 4)")
     if not (boxes_xyxy.dim() == 2 and boxes_xyxy.shape[1] == 4):
         raise ValueError(
-            f"Bounding boxes must be a Tensor of shape(num_boxes, 4) but has shape {
-                boxes_xyxy.shape}"
+            f"Bounding boxes must be a Tensor of shape (num_boxes, 4), but has shape {boxes_xyxy.shape}"
         )
     for box in boxes_xyxy:
         if not (box[0] <= box[2] and box[1] <= box[3]):
             raise ValueError(
-                f"Bounding box coordinates are not in an acceptable format. x1 <= x2 and y1 <= y2 must be true. But got {
-                    box}"
+                f"Bounding box coordinates are not in an acceptable format. "
+                f"x1 <= x2 and y1 <= y2 must be true. But got {box}"
             )
         if not (box >= 0).all():
             raise ValueError(
-                f"Bounding box coordinates must be positive. But got {box}"
+                f"Bounding box coordinates must be non-negative. But got {box}"
             )
 
 
@@ -43,21 +42,21 @@ def validate_labels(labels: Tensor, expected_length: Optional[int] = None):
         )
     if labels.dim() != 1:
         raise ValueError(
-            f"labels must be a 1-dimensional Tensor, i.e. (x,) but {labels} has shape {
-                labels.shape}"
+            f"labels must be a 1-dimensional Tensor, i.e. (x,), but got shape {labels.shape}"
         )
     if expected_length is not None and len(labels) != expected_length:
         raise ValueError(
-            f"Expected number of labels({expected_length}) does not match actual({
-                len(labels)})"
+            f"Expected number of labels ({expected_length}) does not match actual ({len(labels)})"
         )
 
 
 def validate_scores(scores: Tensor, expected_length: Optional[int] = None):
     if not isinstance(scores, Tensor):
+        raise TypeError("scores must be a torch.Tensor")
+    if scores.dtype not in (torch.float16, torch.float32, torch.float64):
         raise TypeError("scores must be a float Tensor")
     if scores.dim() != 1:
-        raise ValueError("Scores must be a 1-dimensional Tensor")
+        raise ValueError("scores must be a 1-dimensional Tensor")
     if expected_length is not None and len(scores) != expected_length:
         raise ValueError(
             "The number of scores must match the number of corresponding elements."
@@ -67,141 +66,138 @@ def validate_scores(scores: Tensor, expected_length: Optional[int] = None):
 
 
 class Annotation:
+    """
+    Base annotation class storing the datapoint_number (index).
+    """
+
     def __init__(self, datapoint_number: int):
         validate_datapoint_number(datapoint_number)
         self.datapoint_number = datapoint_number
 
 
 class BoundingBoxes(Annotation):
+    """
+    BoundingBoxes can optionally have scores. If scores is provided,
+    we treat these bounding boxes as 'predicted'; if not, 'ground truth'.
+    """
+
     def __init__(
         self,
         datapoint_number: int,
         boxes_xyxy: Tensor,
         labels: Tensor,
+        scores: Optional[Tensor] = None,
     ):
         """
-        Initializes a BoundingBoxes object
         :param datapoint_number: The unique identifier for the data point.
-        :param boxes_xyxy: A tensor of shape (num_boxes, 4) representing the bounding box coordinates.
-        :param labels: An integer tensor of shape (num_boxes) representing labels for each bounding box.
+        :param boxes_xyxy: A tensor of shape (num_boxes, 4) representing
+                           bounding box coordinates [x1, y1, x2, y2].
+        :param labels: An integer tensor of shape (num_boxes) representing
+                       labels for each bounding box.
+        :param scores: (Optional) A float tensor of shape (num_boxes)
+                       representing confidence scores for each bounding box.
         """
-        Annotation.__init__(self, datapoint_number)
+        super().__init__(datapoint_number)
         validate_boxes_xyxy(boxes_xyxy)
         validate_labels(labels, expected_length=len(boxes_xyxy))
+
+        if scores is not None:
+            validate_scores(scores, expected_length=len(boxes_xyxy))
+
         self.boxes_xyxy = boxes_xyxy
         self.labels = labels
+        self.scores = scores  # None if ground-truth, else predicted confidence
 
     def to_dict(self):
-        return {
+        output = {
             "boxes": self.boxes_xyxy,
             "labels": self.labels,
         }
-
-
-class PredictedBoundingBoxes(BoundingBoxes):
-    def __init__(
-        self,
-        datapoint_number: int,
-        boxes_xyxy: Tensor,
-        labels: Tensor,
-        scores: Tensor,
-    ):
-        """
-        Initializes a PredictedBoundingBoxes object
-        :param datapoint_number: The unique identifier for the data point.
-        :param boxes_xyxy: A tensor of shape (num_boxes, 4) representing bounding box coordinates.
-        :param labels: An integer tensor of shape (num_boxes) representing labels for each bounding box.
-        :param scores: A float tensor of shape (num_boxes) representing the confidence score for each bounding box.
-        """
-        BoundingBoxes.__init__(self, datapoint_number, boxes_xyxy, labels)
-        validate_scores(scores, expected_length=len(boxes_xyxy))
-        self.scores = scores
-
-    def to_dict(self):
-        return {
-            "boxes": self.boxes_xyxy,
-            "scores": self.scores,
-            "labels": self.labels,
-        }
+        if self.scores is not None:
+            output["scores"] = self.scores
+        return output
 
 
 class Labels(Annotation):
-    def __init__(self, datapoint_number: int, labels: Tensor):
+    """
+    Classification or multi-label annotation, with optional scores for predictions.
+    """
+
+    def __init__(
+        self,
+        datapoint_number: int,
+        labels: Tensor,
+        scores: Optional[Tensor] = None
+    ):
         """
-        Initialize a Labels object
         :param datapoint_number: The unique identifier for the data point.
-        :param labels: A 1-dimensional integer tensor of shape (x,) representing the label(s).
+        :param labels: A 1-dimensional integer tensor (e.g., shape [1] or [k]) 
+                       representing the label(s).
+        :param scores: (Optional) A float tensor representing the confidence
+                       or probability for each label class. Must match length of 'labels'
+                       if it's multi-label, or it can represent probability for all classes.
         """
-        Annotation.__init__(self, datapoint_number)
-        # validate_labels(labels)
+        super().__init__(datapoint_number)
+        validate_labels(labels)
+
+        if scores is not None:
+            # We don't strictly require the length to match 'labels' if it's e.g.
+            # a distribution over all classes. But you can enforce it if you want.
+            validate_scores(scores)
+
         self.labels = labels
-
-
-class PredictedLabels(Labels):
-    def __init__(self, datapoint_number: int, labels: Tensor, scores: Tensor):
-        """
-        Initialize a PredictedLabels object
-        :param datapoint_number: The unique identifier for the data point.
-        :param labels: A 1-dimensional integer tensor representing the predicted label(s).
-        :param scores: A float tensor representing the confidence scores for each class.
-        """
-        Labels.__init__(self, datapoint_number, labels)
-        # validate_scores(scores, expected_length=len(labels))
         self.scores = scores
+
+    def to_dict(self):
+        output = {
+            "labels": self.labels,
+        }
+        if self.scores is not None:
+            output["scores"] = self.scores
+        return output
 
 
 class Annotations:
-    def __init__(self, annotations: List[Annotation] = None):
-        """
-        Initializes an Annotations collection.
+    """
+    A collection of annotation objects, either bounding boxes or labels. 
+    """
 
-        :param annotations: A list of Annotation objects to initialize the collection with. Defaults to None.
-        :raises TypeError: If any of the provided annotations are not instances of Annotation.
-        """
-        # Check if annotations is a list of Annotation objects
+    def __init__(self, annotations: List[Annotation] = None):
         if annotations is not None:
             if not all(isinstance(annotation, Annotation) for annotation in annotations):
                 raise TypeError(
-                    "All annotations must be instances of Annotation"
-                )
+                    "All annotations must be instances of Annotation")
 
         self.annotations = [] if annotations is None else annotations
         self.datapoint_number_to_annotation_index = {}
-        for annotation_index, annotation in enumerate(self.annotations):
-            self.datapoint_number_to_annotation_index[
-                annotation.datapoint_number
-            ] = annotation_index
+        for idx, annotation in enumerate(self.annotations):
+            dp_num = annotation.datapoint_number
+            self.datapoint_number_to_annotation_index[dp_num] = idx
 
     def add(self, annotation: Annotation):
-        # Check if annotation is an instance of Annotation
         if not isinstance(annotation, Annotation):
             raise TypeError("annotation must be an instance of Annotation")
 
-        # Check if the datapoint number already exists
         if annotation.datapoint_number in self.datapoint_number_to_annotation_index:
             raise KeyError(
-                f"An annotation for datapoint number {
-                    annotation.datapoint_number} already exists."
+                f"An annotation for datapoint number {annotation.datapoint_number} already exists."
             )
         self.annotations.append(annotation)
-        self.datapoint_number_to_annotation_index[annotation.datapoint_number] = (
-            len(self.annotations) - 1
-        )
+        self.datapoint_number_to_annotation_index[annotation.datapoint_number] = len(
+            self.annotations) - 1
 
-    def get(self, datapoint_number):
+    def get(self, datapoint_number: int) -> Annotation:
         index = self.datapoint_number_to_annotation_index.get(datapoint_number)
-        if index is not None:
-            return self.annotations[index]
-        else:
+        if index is None:
             raise KeyError(
-                f"No annotation found for datapoint number {datapoint_number}"
-            )
+                f"No annotation found for datapoint number {datapoint_number}")
+        return self.annotations[index]
 
-    def get_datapoint_ids(self):
+    def get_datapoint_ids(self) -> List[int]:
         return list(self.datapoint_number_to_annotation_index.keys())
 
-    def __getitem__(self, datapoint_number):
-        return self.get(datapoint_number=datapoint_number)
+    def __getitem__(self, datapoint_number: int):
+        return self.get(datapoint_number)
 
     def __len__(self):
         return len(self.annotations)
@@ -211,41 +207,31 @@ class Annotations:
 
 
 class Predictions(Annotations):
-    def __init__(
-        self,
-        dataset,
-        predictions: List[Union[PredictedBoundingBoxes,
-                                PredictedLabels]] = None,
-    ):
+    """
+    Predictions container. By using our new unified classes (Labels/BoundingBoxes with optional scores),
+    we no longer need separate PredictedLabels or PredictedBoundingBoxes classes.
+    """
+
+    def __init__(self, dataset, predictions: List[Annotation] = None):
         """
-        Initializes a Predictions object
-        :param dataset: The Moonwatcher dataset associated with these predictions.
-        :param predictions: A list of predicted annotations.
+        :param dataset: The Moonwatcher dataset or relevant dataset object.
+        :param predictions: A list of annotation objects (Labels or BoundingBoxes) 
+                            with optional scores.
         """
-        if predictions is not None:
-            if not (
-                all(isinstance(prediction, PredictedBoundingBoxes) for prediction in predictions) or
-                all(isinstance(prediction, PredictedLabels)
-                    for prediction in predictions)
-            ):
-                raise TypeError(
-                    "All predictions must be instances of PredictedBoundingBoxes or all instances of PredictedLabels."
-                )
-        Annotations.__init__(self, annotations=predictions)
+        # Optional: we could enforce that if it’s a detection dataset, predictions
+        # should be bounding boxes, etc. But that’s up to your logic.
+        super().__init__(annotations=predictions)
+        self.dataset = dataset
 
 
 class GroundTruths(Annotations):
-    def __init__(
-        self, dataset, groundtruths: List[Union[BoundingBoxes, Labels]] = None
-    ):
-        if groundtruths is not None:
-            if not (
-                all(isinstance(groundtruth, BoundingBoxes) and not isinstance(groundtruth, PredictedBoundingBoxes)
-                    for groundtruth in groundtruths) or
-                all(isinstance(groundtruth, Labels) and not isinstance(groundtruth, PredictedLabels)
-                    for groundtruth in groundtruths)
-            ):
-                raise TypeError(
-                    "All ground truths must be instances of BoundingBoxes or Labels (not their Predicted subclasses)."
-                )
-        Annotations.__init__(self, annotations=groundtruths)
+    """
+    Ground truths container. Similarly does not need separate bounding box vs. label classes,
+    because each annotation can handle optional scores (which presumably won't be set for ground truths).
+    """
+
+    def __init__(self, dataset, groundtruths: List[Annotation] = None):
+        # You could similarly do checks if you want to enforce no 'scores' in ground truths,
+        # or just rely on user discipline.
+        super().__init__(annotations=groundtruths)
+        self.dataset = dataset
