@@ -130,6 +130,9 @@ class Check(MoonwatcherObject):
                 json.dump(obj=report, fp=f, indent=4)
         return report
 
+    def run(self, show=False, save_report=False):
+        return self.__call__(show=show, save_report=save_report)
+
     def _upload_report(self, report):
         data = {
             "check_name": self.name,
@@ -208,6 +211,9 @@ class CheckSuite(MoonwatcherObject):
                 json.dump(obj=checksuite_report, fp=f, indent=4)
 
         return checksuite_report
+
+    def run(self, show=None, save_report=False):
+        return self.__call__(show=show, save_report=save_report)
 
     def _upload_report(self, report):
         data = {

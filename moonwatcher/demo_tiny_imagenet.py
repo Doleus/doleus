@@ -80,6 +80,7 @@ moonwatcher_dataset = MoonwatcherClassification(
 
 # Step 8) Add Metadata
 moonwatcher_dataset.add_predefined_metadata("brightness")
+moonwatcher_dataset.add_metadata_from_groundtruths
 
 # Step 9) Create Slices
 slice_bright = moonwatcher_dataset.slice_by_percentile("brightness", ">=", 50)
@@ -110,4 +111,4 @@ check_suite = CheckSuite(
 )
 
 # Step 12) Run Checks
-results = check_suite(show=True)
+test_results = check_suite.run(show=True)
