@@ -3,7 +3,7 @@ from typing import Union
 import torch
 import torchmetrics
 
-from moonwatcher.utils.data import TaskType, Task
+from moonwatcher.utils.data import TaskType
 from moonwatcher.dataset.dataset import Moonwatcher, Slice
 
 

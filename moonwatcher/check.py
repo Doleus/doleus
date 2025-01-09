@@ -9,8 +9,7 @@ from moonwatcher.dataset.dataset import Moonwatcher, Slice
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.metric import calculate_metric
 from moonwatcher.utils.helpers import get_current_timestamp
-from moonwatcher.utils.data import DataType
-from moonwatcher.utils.data import Task, TaskType
+from moonwatcher.utils.data import TaskType
 
 
 class Check():

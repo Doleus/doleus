@@ -9,11 +9,10 @@ from torch.utils.data import Dataset, Subset
 
 from moonwatcher.datapoint import Datapoint
 from moonwatcher.utils.data import OPERATOR_DICT
-from moonwatcher.utils.data import DataType, TaskType
-from moonwatcher.utils.api_connector import is_api_key_and_endpoint_available
+from moonwatcher.utils.data import TaskType
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.annotations import GroundTruths, Labels, BoundingBoxes
-from moonwatcher.utils.helpers import get_current_timestamp, convert_to_list
+from moonwatcher.utils.helpers import get_current_timestamp
 
 
 def find_root_dataset(dataset):

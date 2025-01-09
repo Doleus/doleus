@@ -1,6 +1,5 @@
 import pickle
 import random
-import json
 import pydicom
 from pathlib import Path
 import pandas as pd
@@ -8,10 +7,9 @@ import random
 from typing import List
 import torch
 from torch.utils.data import Dataset
-from torch.utils.data import Subset
 
-from moonwatcher.dataset.dataset import Moonwatcher, MoonwatcherClassification, MoonwatcherDetection
-from moonwatcher.utils.data import TaskType, Task
+from moonwatcher.dataset.dataset import MoonwatcherClassification, MoonwatcherDetection
+from moonwatcher.utils.data import Task
 from moonwatcher.check import Check, CheckSuite
 
 # Variables
