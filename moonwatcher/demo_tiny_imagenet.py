@@ -50,7 +50,7 @@ train_dataset = datasets.ImageFolder(
 subset_size = 100
 indices = torch.randperm(len(train_dataset))[:subset_size]
 subset = Subset(train_dataset, indices)
-train_loader = DataLoader(subset, batch_size=8, shuffle=True)
+train_loader = DataLoader(subset, batch_size=8, shuffle=False)
 
 # Step 5) Load the Model
 model = torchvision.models.get_model('resnet18', num_classes=200)
