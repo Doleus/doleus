@@ -272,6 +272,7 @@ class Moonwatcher(Dataset):
     # -------------------------------------------------------------------------
     #                            METADATA METHODS
     # -------------------------------------------------------------------------
+    #TODO: Check
     def add_predefined_metadata(self, predefined_metadata_keys: Union[str, List[str]]):
         if isinstance(predefined_metadata_keys, str):
             predefined_metadata_keys = [predefined_metadata_keys]
@@ -311,41 +312,6 @@ class Moonwatcher(Dataset):
                 val = metadata_func(image_np)
                 self.datapoints[i].add_metadata(key=metadata_key, value=val)
 
-    def add_metadata_from_groundtruths(self, class_name: str):
-        """
-        Example: if your dataset is classification and 'class_name' is in label_to_name,
-        add to each datapoint how many times that class appears.
-        """
-        if not self.name_to_label:
-            if self.label_to_name is not None:
-                self.name_to_label = {v: k for k,
-                                      v in self.label_to_name.items()}
-            else:
-                raise ValueError(
-                    "No label_to_name provided, can't match class_name.")
-
-        if class_name not in self.name_to_label:
-            raise ValueError(
-                f"Class '{class_name}' not found in label_to_name.")
-        class_id = self.name_to_label[class_name]
-
-        for datapoint in tqdm(self.datapoints, desc=f"Adding metadata for class '{class_name}'"):
-            i = datapoint.id
-            if i not in self.groundtruths.datapoint_number_to_annotation_index:
-                # no groundtruth for this item?
-                continue
-
-            groundtruth = self.groundtruths.get(i)
-
-            if self.task_type == TaskType.DETECTION.value:
-                if isinstance(groundtruth, BoundingBoxes):
-                    count = (groundtruth.labels == class_id).sum().item()
-                    datapoint.add_metadata(key=class_name, value=count)
-            elif self.task_type == TaskType.CLASSIFICATION.value:
-                if isinstance(groundtruth, Labels):
-                    count = (groundtruth.labels == class_id).sum().item()
-                    datapoint.add_metadata(key=class_name, value=count)
-
     # -------------------------------------------------------------------------
     #                                SLICING
     # -------------------------------------------------------------------------
@@ -371,7 +337,7 @@ class Moonwatcher(Dataset):
         if slice_name is None:
             slice_name = self._generate_filename(
                 metadata_key, operator_str, threshold)
-        return Slice(self, slice_name, indices, self)
+        return Slice(self, slice_name, indices)
 
     def slice_by_percentile(self, metadata_key: str, operator_str: str, percentile: float, slice_name: str = None):
         op_func = OPERATOR_DICT[operator_str]
@@ -382,29 +348,106 @@ class Moonwatcher(Dataset):
         if slice_name is None:
             slice_name = self._generate_filename(
                 metadata_key, operator_str, percentile)
-        return Slice(self, slice_name, indices, self)
+        return Slice(self, slice_name, indices)
 
-    def slice_by_class(self, metadata_key: str, slice_names: List[str] = None):
-        class_indices = {}
-        for i, dp in enumerate(self.datapoints):
-            class_value = dp.get_metadata(metadata_key)
-            class_indices.setdefault(class_value, []).append(i)
+    def slice_by_metadata_value(
+        self,
+        metadata_key: str,
+        target_value: Any,
+        slice_name: Optional[str] = None
+    ) -> "Slice":
+        """Create slice where datapoint.metadata[metadata_key] == target_value.
+        
+        Args:
+            metadata_key: Metadata field to check
+            target_value: Value to match exactly
+            slice_name: Optional name for the slice
+            
+        Returns:
+            Slice containing matching datapoints
+        """
+        indices = [
+            i for i, dp in enumerate(self.datapoints)
+            if dp.get_metadata(metadata_key) == target_value
+        ]
+        
+        if not slice_name:
+            slice_name = f"{metadata_key}_{str(target_value).replace(' ', '_')}"
+        
+        return Slice(self, slice_name, indices)
 
-        class_values = sorted(class_indices.keys(), key=lambda x: str(x))
-        num_classes = len(class_values)
 
-        if not slice_names or len(slice_names) != num_classes:
-            slice_names = [
-                self._generate_filename(metadata_key, "class", val)
-                for val in class_values
+
+    def slice_by_groundtruth_class(
+        self,
+        class_names: Optional[List[str]] = None,
+        class_ids: Optional[List[int]] = None,
+        slice_name: Optional[str] = None
+    ) -> "Slice":
+        """Create slice containing datapoints with specified classes in their ground truth.
+        
+        Args:
+            class_names: Class names to include (requires label_to_name mapping)
+            class_ids: Class IDs to include (direct identifier)
+            slice_name: Optional name for the resulting slice
+            
+        Returns:
+            Slice containing datapoints with specified classes
+            
+        Raises:
+            ValueError: If neither class_names nor class_ids are provided
+        """
+        # Validate at least one argument provided
+        if not class_names and not class_ids:
+            raise ValueError("Must provide either class_names or class_ids")
+
+        # Convert class names to IDs if provided
+        if class_names:
+            if not self.label_to_name:
+                raise ValueError("Class names require label_to_name mapping")
+            
+            # Validate all names exist in label mapping
+            valid_names = set(self.label_to_name.values())
+            invalid_names = set(class_names) - valid_names
+            if invalid_names:
+                raise ValueError(f"Invalid class names: {sorted(invalid_names)}")
+            
+            # Convert to unique class IDs
+            class_ids = [
+                class_id 
+                for class_id, name in self.label_to_name.items()
+                if name in class_names
             ]
+        
+        # Remove duplicates and convert to set for faster lookups
+        class_id_set = set(class_ids) if class_ids else set()
+        
+        # Collect matching original indices
+        filtered_indices = []
+        for datapoint in self.datapoints:
+            original_idx = datapoint.id
+            
+            try:
+                ground_truth = self.groundtruths.get(original_idx)
+            except KeyError:
+                continue  # Skip datapoints without ground truth
+            
+            # Unified handling for both annotation types
+            if isinstance(ground_truth, (Labels, BoundingBoxes)):
+                # Check if any label matches our target classes
+                # Works for:
+                # - Classification (single/multi-label): labels tensor shape [N]
+                # - Detection: labels tensor shape [M] (per-box labels)
+                if torch.any(torch.isin(ground_truth.labels, torch.tensor(list(class_id_set)))):
+                    filtered_indices.append(original_idx)
 
-        slices = []
-        for val, sn in zip(class_values, slice_names):
-            idxs = class_indices[val]
-            slices.append(Slice(self, sn, idxs, self))
-        return slices
+        # Generate default name if needed
+        if not slice_name:
+            target_classes = class_names if class_names else sorted(class_id_set)
+            class_str = "_".join(map(str, target_classes))[:50]  # Limit length
+            slice_name = f"gt_class_{class_str}"
 
+        return Slice(self, slice_name, filtered_indices)
 
 class Slice(Moonwatcher):
     """
@@ -413,29 +456,27 @@ class Slice(Moonwatcher):
 
     def __init__(
         self,
-        moonwatcher_dataset: Moonwatcher,
+        root_dataset: Moonwatcher,
         name: str,
         indices: List[int],
-        original_dataset: Moonwatcher,
         description: str = None,
     ):
-        self.dataset_name = moonwatcher_dataset.name
+        self.root_dataset_name = root_dataset.name
+        self.root_dataset = root_dataset
         self.name = name
-        self.task_type = moonwatcher_dataset.task_type
-        self.task = moonwatcher_dataset.task
-        self.metadata = moonwatcher_dataset.metadata
-        self.datapoints_metadata = moonwatcher_dataset.datapoints_metadata
-        self.groundtruths = moonwatcher_dataset.groundtruths
-        self.predictions = moonwatcher_dataset.predictions
+        self.task_type = root_dataset.task_type
+        self.task = root_dataset.task
+        self.metadata = root_dataset.metadata
+        self.datapoints_metadata = root_dataset.datapoints_metadata
+        self.groundtruths = root_dataset.groundtruths
+        self.predictions = root_dataset.predictions
         self.description = description
 
         self.indices = indices
-        self.dataset = Subset(moonwatcher_dataset.dataset, indices)
-        self.moonwatcher_dataset = moonwatcher_dataset
-        self.original_dataset = original_dataset
+        self.dataset = Subset(root_dataset.dataset, indices)
 
         # For each index, store the corresponding subset of datapoints
-        self.datapoints = [moonwatcher_dataset.datapoints[i] for i in indices]
+        self.datapoints = [root_dataset.datapoints[i] for i in indices]
 
     def __len__(self):
         return len(self.indices)
@@ -445,72 +486,6 @@ class Slice(Moonwatcher):
 
     def __getattr__(self, attr):
         return getattr(self.dataset, attr)
-
-    def add_predefined_metadata(self, predefined_metadata_key: Union[str, List[str]]):
-        super().add_predefined_metadata(predefined_metadata_key)
-        self.original_dataset.add_predefined_metadata(predefined_metadata_key)
-
-    def add_metadata_from_groundtruths(self, class_name: str):
-        super().add_metadata_from_groundtruths(class_name)
-        self.original_dataset.add_metadata_from_groundtruths(class_name)
-
-    def add_metadata_custom(self, metadata_key: str, metadata_func: Callable):
-        super().add_metadata_custom(metadata_key, metadata_func)
-        self.original_dataset.add_metadata_custom(metadata_key, metadata_func)
-
-    def add_metadata_from_list(self, metadata_list: List[Dict[str, Any]]):
-        super().add_metadata_from_list(metadata_list)
-        self.original_dataset.add_metadata_from_list(metadata_list)
-
-    # Slicing from a slice returns a new Slice referencing the original dataset
-    def slice_by_threshold(self, metadata_key: str, operator_str: str, threshold: Any, slice_name: str = None):
-        op_func = OPERATOR_DICT[operator_str]
-        filtered_indices = [
-            idx for idx, dp in zip(self.indices, self.datapoints)
-            if op_func(dp.get_metadata(metadata_key), threshold)
-        ]
-        if slice_name is None:
-            slice_name = self._generate_filename(
-                metadata_key, operator_str, threshold)
-
-        return Slice(self, slice_name, filtered_indices, self.original_dataset)
-
-    def slice_by_percentile(self, metadata_key: str, operator_str: str, percentile: float, slice_name: str = None):
-        op_func = OPERATOR_DICT[operator_str]
-        slice_values = [dp.get_metadata(metadata_key)
-                        for dp in self.datapoints]
-        threshold = np.percentile(slice_values, percentile)
-        filtered_indices = [
-            idx for idx, dp in zip(self.indices, self.datapoints)
-            if op_func(dp.get_metadata(metadata_key), threshold)
-        ]
-        if slice_name is None:
-            slice_name = self._generate_filename(
-                metadata_key, operator_str, percentile)
-
-        return Slice(self, slice_name, filtered_indices, self.original_dataset)
-
-    def slice_by_class(self, metadata_key: str, slice_names: List[str] = None):
-        class_indices = {}
-        for idx, dp in zip(self.indices, self.datapoints):
-            class_value = dp.get_metadata(metadata_key)
-            class_indices.setdefault(class_value, []).append(idx)
-
-        class_values = sorted(class_indices.keys(), key=lambda x: str(x))
-        num_classes = len(class_values)
-
-        if not slice_names or len(slice_names) != num_classes:
-            slice_names = [
-                self._generate_filename(metadata_key, "class", val)
-                for val in class_values
-            ]
-
-        slices = []
-        for val, sn in zip(class_values, slice_names):
-            idxs = class_indices[val]
-            slices.append(Slice(self, sn, idxs, self.original_dataset))
-        return slices
-
 
 class MoonwatcherClassification(Moonwatcher):
     def __init__(
