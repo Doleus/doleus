@@ -72,7 +72,7 @@ class ReportVisualizer:
         operator = check_report["operator"]
         value = check_report["value"]
         result_val = check_report["result"]
-        dataset_name = check_report["slice_name"] or check_report["dataset_name"]
+        root_dataset_name = check_report["slice_name"] or check_report["root_dataset_name"]
         metric_name = check_report["metric"]
 
         if operator is not None and value is not None:
@@ -93,7 +93,7 @@ class ReportVisualizer:
             result_str = f"{color}{result_val:.5f}{self.END}"
             comparison_str = f"{op_symbol} {value}"
 
-            appendix = f"({metric_name} on {dataset_name})"
+            appendix = f"({metric_name} on {root_dataset_name})"
             print(
                 f"{line_str.ljust(40)} {result_str} {comparison_str.ljust(10)} {appendix}"
             )
@@ -101,7 +101,7 @@ class ReportVisualizer:
             # No threshold test
             # Just print the metric result
             print(
-                f"{line_str.ljust(40)} {result_val:.5f}  ({metric_name} on {dataset_name})")
+                f"{line_str.ljust(40)} {result_val:.5f}  ({metric_name} on {root_dataset_name})")
 
 
 class Check:
@@ -172,7 +172,7 @@ class Check:
 
         # 3) Build report dict
         if isinstance(self.dataset_or_slice, Slice):
-            ds_name = self.dataset_or_slice.dataset_name
+            ds_name = self.dataset_or_slice.root_dataset_name
             slice_name = self.dataset_or_slice.name
         else:
             ds_name = self.dataset_or_slice.name
@@ -180,7 +180,7 @@ class Check:
 
         report = {
             "check_name": self.name,
-            "dataset_name": ds_name,
+            "root_dataset_name": ds_name,
             "slice_name": slice_name,
             "metric": self.metric,
             "operator": self.operator,
