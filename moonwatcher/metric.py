@@ -16,7 +16,7 @@ def get_original_indices(dataset_or_slice: Union[Moonwatcher, Slice]) -> List[in
     """
     if isinstance(dataset_or_slice, Slice):
         parent_indices = get_original_indices(
-            dataset_or_slice.original_dataset)
+            dataset_or_slice.root_dataset)
         return [parent_indices[i] for i in dataset_or_slice.indices]
     elif isinstance(dataset_or_slice, Moonwatcher):
         return list(range(len(dataset_or_slice.dataset)))
@@ -236,7 +236,7 @@ def calculate_metric(
 
     # Identify underlying dataset if 'dataset_or_slice' is a Slice
     if isinstance(dataset_or_slice, Slice):
-        parent_dataset = dataset_or_slice.original_dataset
+        parent_dataset = dataset_or_slice.root_dataset
     else:
         parent_dataset = dataset_or_slice
 
