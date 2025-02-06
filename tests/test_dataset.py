@@ -8,22 +8,6 @@ from torch.utils.data import Dataset
 from moonwatcher.metric import get_original_indices
 from moonwatcher.dataset.dataset import Moonwatcher, MoonwatcherClassification, MoonwatcherDetection, Slice
 
-'''
-Steps to rewrite the tests:
-1. Add one mock pytorch dataset for each task type
-2. Add one mock dataset for each task type
-3. Write tests for each task type
-'''
-
-
-class ClassificationMockDataset(Dataset):
-    def __len__(self):
-        return 100
-
-    def __getitem__(self, idx):
-        return np.random.rand(3, 256, 256), idx % 5
-
-
 class DetectionMockDataset(Dataset):
     pass
 
@@ -41,26 +25,21 @@ def output_transform(datapoint):
 
 
 @pytest.fixture
-def create_classification_mock_dataset():
-    return ClassificationMockDataset()
-
-
-@pytest.fixture
-def moonwatcher_classification_dataset(create_classification_mock_dataset):
+def moonwatcher_classification_dataset(create_classification_mock_dataset) -> 'MoonwatcherClassification':
+    from moonwatcher.dataset.dataset import MoonwatcherClassification
+    import uuid
+    
     classification_mock_dataset = create_classification_mock_dataset
     unique_name = f"test_dataset_{uuid.uuid4()}"
     num_classes = 5  # Randomly chosen
     num_datapoints = len(classification_mock_dataset)
     predictions = torch.randint(
         low=0, high=num_classes, size=(num_datapoints,)) #Predictions are random integers that represent class numbers
-    print(f"predictions shape: {predictions.shape}")
 
     return MoonwatcherClassification(
         dataset=classification_mock_dataset,
         name=unique_name,
         task="binary",
-        output_transform=output_transform,
-        predictions=predictions,
         num_classes=num_classes,
     )
 
@@ -72,125 +51,48 @@ def test_initialization(moonwatcher_classification_dataset):
     assert isinstance(moonwatcher_classification_dataset,
                       MoonwatcherClassification)
 
-# TODO: Create a mock dataset for detection
 
-# class MockDataset(Dataset):
-#     def __init__(self, transform=None):
-#         self.transform = transform
+def test_add_groundtruths_from_dataset(moonwatcher_classification_dataset):
+    moonwatcher_classification_dataset.add_groundtruths_from_dataset()
+    assert len(moonwatcher_classification_dataset.groundtruths) == 100
 
-#     def __len__(self):
-#         return 100
 
-#     def __getitem__(self, idx):
-#         dummy_image = np.random.randint(0, 256, (10, 10, 3), dtype=np.uint8)
-#         return dummy_image, idx % 10
+def test_add_metadata_from_list(moonwatcher_classification_dataset):
+    metadata_list = [{'key1': 'value1'}, {'key2': 'value2'}]
+    moonwatcher_classification_dataset.add_metadata_from_list(metadata_list)
+    assert 'key1' in moonwatcher_classification_dataset.datapoints[0].metadata
+    assert 'key2' in moonwatcher_classification_dataset.datapoints[1].metadata
 
-# @pytest.fixture
-# def simple_dataset():
-#     return MockDataset()
 
-# def output_transform(x):
-#     return x[0], torch.tensor(x[1])
+def test_slice_by_threshold(moonwatcher_classification_dataset):
+    moonwatcher_classification_dataset.add_metadata_from_list(
+        [{'brightness': 0.5} for _ in range(100)])
+    slice_dataset = moonwatcher_classification_dataset.slice_by_threshold(
+        "brightness", ">", 0.4)
+    assert len(slice_dataset) == 100
 
-# @pytest.fixture
-# def basic_moonwatcher_dataset(simple_dataset):
-#     unique_name = f"test_dataset_{uuid.uuid4()}"
-#     return Moonwatcher(
-#         dataset=simple_dataset,
-#         name=unique_name,
-#         task_type="classification",
-#         output_transform=output_transform,
-#         label_to_name={i: f"class_{i}" for i in range(10)},
-#         locators=["http://fakeurl.com/image_{}".format(i) for i in range(100)],
-#     )
 
-# def test_initialization(basic_moonwatcher_dataset):
-#     assert basic_moonwatcher_dataset.name.startswith("test_dataset_")
-#     assert len(basic_moonwatcher_dataset) == 100
-#     assert isinstance(basic_moonwatcher_dataset, Moonwatcher)
+def test_slice_by_metadata_value(moonwatcher_classification_dataset):
+    moonwatcher_classification_dataset.add_metadata_from_list(
+        [{'class': 'A'} for _ in range(50)] + [{'class': 'B'} for _ in range(50)])
+    slice_dataset = moonwatcher_classification_dataset.slice_by_metadata_value(
+        "class", "A")
+    assert len(slice_dataset) == 50
 
-# def test_data_retrieval(basic_moonwatcher_dataset):
-#     data_point = basic_moonwatcher_dataset.get_datapoint(10)
-#     assert data_point is not None
-#     assert data_point.number == 10
+def test_detection_initialization(moonwatcher_detection_dataset):
+    assert moonwatcher_detection_dataset.name.startswith(
+        "test_detection_dataset_")
+    assert len(moonwatcher_detection_dataset) == 100
+    assert isinstance(moonwatcher_detection_dataset,
+                      MoonwatcherDetection)
 
-# def test_metadata_addition(basic_moonwatcher_dataset):
-#     basic_moonwatcher_dataset.add_predefined_metadata(
-#         predefined_metadata_key="brightness",
-#     )
-#     assert "brightness" in basic_moonwatcher_dataset.datapoints[0].metadata
 
-# def test_slicing_by_threshold(basic_moonwatcher_dataset):
-#     basic_moonwatcher_dataset.add_predefined_metadata(
-#         predefined_metadata_key="brightness",
-#     )
-#     slice_dataset = basic_moonwatcher_dataset.slice_by_threshold(
-#         "brightness", ">", 190)
-#     for idx in slice_dataset.indices:
-#         brightness = basic_moonwatcher_dataset.datapoints[idx].metadata["brightness"]
-#         assert brightness > 190, f"Expected brightness > 0.1 but got {
-#             brightness}"
+def test_add_groundtruths_from_detection_dataset(moonwatcher_detection_dataset):
+    moonwatcher_detection_dataset.add_groundtruths_from_dataset()
+    assert len(moonwatcher_detection_dataset.groundtruths) == 100
 
-# def test_slicing_by_percentile(basic_moonwatcher_dataset):
-#     basic_moonwatcher_dataset.add_predefined_metadata(
-#         predefined_metadata_key="contrast",
-#     )
-#     slice_dataset = basic_moonwatcher_dataset.slice_by_percentile(
-#         "contrast", ">", 90)
-#     assert len(slice_dataset) < len(basic_moonwatcher_dataset)
 
-# def test_slicing_by_class(basic_moonwatcher_dataset):
-#     basic_moonwatcher_dataset.add_metadata_custom(
-#         metadata_key="class_type",
-#         metadata_func=lambda x: 0 if np.random.rand() < 0.5 else 1,
-#     )
-#     slices = basic_moonwatcher_dataset.slice_by_class("class_type")
-#     assert len(slices) == 2
-
-# def test_get_original_indices(basic_moonwatcher_dataset):
-#     slice_indices = [i for i in range(10, 20)]
-#     mock_slice = Slice(
-#         basic_moonwatcher_dataset, "Slice1", slice_indices, basic_moonwatcher_dataset
-#     )
-
-#     indices = get_original_indices(mock_slice)
-#     assert indices == list(range(10, 20))
-
-#     indices = get_original_indices(basic_moonwatcher_dataset)
-#     assert indices == list(range(100))
-
-#     with pytest.raises(TypeError):
-#         get_original_indices("invalid_input")
-
-# def test_get_original_indices_nested(basic_moonwatcher_dataset):
-#     # First-level slice
-#     slice_indices = [i for i in range(10, 20)]
-#     mock_slice = Slice(
-#         basic_moonwatcher_dataset,
-#         f"Slice1_{uuid.uuid4()}",
-#         slice_indices,
-#         basic_moonwatcher_dataset,
-#     )
-
-#     indices = get_original_indices(mock_slice)
-#     assert indices == list(range(10, 20))
-
-#     # Second-level slice (slice of a slice)
-#     nested_slice_indices = [i for i in range(5, 10)]
-#     nested_mock_slice = Slice(
-#         mock_slice,
-#         f"NestedSlice_{uuid.uuid4()}",
-#         nested_slice_indices,
-#         basic_moonwatcher_dataset,
-#     )
-
-#     nested_indices = get_original_indices(nested_mock_slice)
-#     assert nested_indices == list(range(15, 20))
-
-#     # Full dataset indices
-#     indices = get_original_indices(basic_moonwatcher_dataset)
-#     assert indices == list(range(100))
-
-#     # Invalid input
-#     with pytest.raises(TypeError):
-#         get_original_indices("invalid_input")
+def test_slice_by_groundtruth_class(moonwatcher_detection_dataset):
+    slice_dataset = moonwatcher_detection_dataset.slice_by_groundtruth_class(
+        class_ids=[0])
+    assert len(slice_dataset) > 0  # Ensure some data points are sliced
