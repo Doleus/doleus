@@ -1,22 +1,23 @@
 from typing import List, Dict, Any, Callable, Union, Optional
+from tqdm import tqdm
+
 import torch
 import numpy as np
 from PIL import Image
-from tqdm import tqdm
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset, Subset
 
 from moonwatcher.datapoint import Datapoint
 from moonwatcher.utils.data import OPERATOR_DICT, TaskType
+from moonwatcher.utils.helpers import get_current_timestamp
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.annotations import GroundTruths, Predictions, Labels, BoundingBoxes
-from moonwatcher.utils.helpers import get_current_timestamp
 
 
+# TODO: Find a cleaner way to handle this
 def find_root_dataset(dataset: Dataset) -> Dataset:
     """
-    Recursively find the original underlying dataset in case the user
-    has wrapped the dataset in multiple Subset objects.
+    Recursively find the root dataset.
     """
     if hasattr(dataset, "dataset"):
         return find_root_dataset(dataset.dataset)
@@ -105,10 +106,10 @@ class Moonwatcher(Dataset):
                 md = datapoints_metadata[i]
             self.datapoints.append(Datapoint(id=i, metadata=md))
 
-        # Annotations: we store them here, but fill them *after* init as needed
+        # TODO: Is this the right place to initialize these?
         self.groundtruths = GroundTruths(dataset=self)
         self.predictions = Predictions(dataset=self)
-        self.add_groundtruths_from_dataset()
+        self.add_groundtruths()
 
     # -------------------------------------------------------------------------
     #                           GROUND TRUTHS
@@ -116,15 +117,14 @@ class Moonwatcher(Dataset):
 
     def _get_root_index(self, local_idx: int) -> int:
         """
-        Return the 'real' index in the *original* dataset if self.dataset is a Subset.
-        Otherwise, return local_idx.
+        Return the corresponding index in the root dataset given a local index for a slice.
         """
         if isinstance(self.dataset, Subset):
             return self.dataset.indices[local_idx]  # Root index
         else:
             return local_idx
 
-    def add_groundtruths_from_dataset(self):
+    def add_groundtruths(self):
         """
         Loops over every item in the underlying dataset and converts the
         second/third outputs into annotation objects (Labels or BoundingBoxes).
@@ -175,7 +175,7 @@ class Moonwatcher(Dataset):
     # -------------------------------------------------------------------------
     #                           PREDICTIONS
     # -------------------------------------------------------------------------
-    def add_predictions_from_model_outputs(self, predictions: Any):
+    def add_predictions(self, predictions: Any):
         """
         Expects model outputs (e.g., a tensor of logits for classification, or
         bounding boxes + scores for detection). Converts them into annotation
@@ -272,7 +272,7 @@ class Moonwatcher(Dataset):
     # -------------------------------------------------------------------------
     #                            METADATA METHODS
     # -------------------------------------------------------------------------
-    #TODO: Check
+    # TODO: Check
     def add_predefined_metadata(self, predefined_metadata_keys: Union[str, List[str]]):
         if isinstance(predefined_metadata_keys, str):
             predefined_metadata_keys = [predefined_metadata_keys]
@@ -337,7 +337,7 @@ class Moonwatcher(Dataset):
         if slice_name is None:
             slice_name = self._generate_filename(
                 metadata_key, operator_str, threshold)
-        return Slice(self, slice_name, indices)
+        return Slice(name=slice_name, root_dataset=self, indices=indices)
 
     def slice_by_percentile(self, metadata_key: str, operator_str: str, percentile: float, slice_name: str = None):
         op_func = OPERATOR_DICT[operator_str]
@@ -348,7 +348,7 @@ class Moonwatcher(Dataset):
         if slice_name is None:
             slice_name = self._generate_filename(
                 metadata_key, operator_str, percentile)
-        return Slice(self, slice_name, indices)
+        return Slice(name=slice_name, root_dataset=self, indices=indices)
 
     def slice_by_metadata_value(
         self,
@@ -357,12 +357,12 @@ class Moonwatcher(Dataset):
         slice_name: Optional[str] = None
     ) -> "Slice":
         """Create slice where datapoint.metadata[metadata_key] == target_value.
-        
+
         Args:
             metadata_key: Metadata field to check
             target_value: Value to match exactly
             slice_name: Optional name for the slice
-            
+
         Returns:
             Slice containing matching datapoints
         """
@@ -370,13 +370,11 @@ class Moonwatcher(Dataset):
             i for i, dp in enumerate(self.datapoints)
             if dp.get_metadata(metadata_key) == target_value
         ]
-        
+
         if not slice_name:
             slice_name = f"{metadata_key}_{str(target_value).replace(' ', '_')}"
-        
-        return Slice(self, slice_name, indices)
 
-
+        return Slice(name=slice_name, root_dataset=self, indices=indices)
 
     def slice_by_groundtruth_class(
         self,
@@ -385,15 +383,15 @@ class Moonwatcher(Dataset):
         slice_name: Optional[str] = None
     ) -> "Slice":
         """Create slice containing datapoints with specified classes in their ground truth.
-        
+
         Args:
             class_names: Class names to include (requires label_to_name mapping)
             class_ids: Class IDs to include (direct identifier)
             slice_name: Optional name for the resulting slice
-            
+
         Returns:
             Slice containing datapoints with specified classes
-            
+
         Raises:
             ValueError: If neither class_names nor class_ids are provided
         """
@@ -405,33 +403,34 @@ class Moonwatcher(Dataset):
         if class_names:
             if not self.label_to_name:
                 raise ValueError("Class names require label_to_name mapping")
-            
+
             # Validate all names exist in label mapping
             valid_names = set(self.label_to_name.values())
             invalid_names = set(class_names) - valid_names
             if invalid_names:
-                raise ValueError(f"Invalid class names: {sorted(invalid_names)}")
-            
+                raise ValueError(
+                    f"Invalid class names: {sorted(invalid_names)}")
+
             # Convert to unique class IDs
             class_ids = [
-                class_id 
+                class_id
                 for class_id, name in self.label_to_name.items()
                 if name in class_names
             ]
-        
+
         # Remove duplicates and convert to set for faster lookups
         class_id_set = set(class_ids) if class_ids else set()
-        
+
         # Collect matching original indices
         filtered_indices = []
         for datapoint in self.datapoints:
             original_idx = datapoint.id
-            
+
             try:
                 ground_truth = self.groundtruths.get(original_idx)
             except KeyError:
                 continue  # Skip datapoints without ground truth
-            
+
             # Unified handling for both annotation types
             if isinstance(ground_truth, (Labels, BoundingBoxes)):
                 # Check if any label matches our target classes
@@ -443,11 +442,13 @@ class Moonwatcher(Dataset):
 
         # Generate default name if needed
         if not slice_name:
-            target_classes = class_names if class_names else sorted(class_id_set)
+            target_classes = class_names if class_names else sorted(
+                class_id_set)
             class_str = "_".join(map(str, target_classes))[:50]  # Limit length
             slice_name = f"gt_class_{class_str}"
 
-        return Slice(self, slice_name, filtered_indices)
+        return Slice(name=slice_name, root_dataset=self, indices=filtered_indices)
+
 
 class Slice(Moonwatcher):
     """
@@ -456,36 +457,28 @@ class Slice(Moonwatcher):
 
     def __init__(
         self,
-        root_dataset: Moonwatcher,
         name: str,
+        root_dataset: Moonwatcher,
         indices: List[int],
         description: str = None,
     ):
-        self.root_dataset_name = root_dataset.name
-        self.root_dataset = root_dataset
         self.name = name
-        self.task_type = root_dataset.task_type
-        self.task = root_dataset.task
-        self.metadata = root_dataset.metadata
-        self.datapoints_metadata = root_dataset.datapoints_metadata
-        self.groundtruths = root_dataset.groundtruths
-        self.predictions = root_dataset.predictions
-        self.description = description
-
+        self.root_dataset = root_dataset
         self.indices = indices
-        self.dataset = Subset(root_dataset.dataset, indices)
-
-        # For each index, store the corresponding subset of datapoints
+        self.description = description
         self.datapoints = [root_dataset.datapoints[i] for i in indices]
 
     def __len__(self):
         return len(self.indices)
 
     def __getitem__(self, idx):
-        return self.dataset[idx]
+        # Map the local slice index to the corresponding index in the root dataset.
+        root_idx = self.indices[idx]
+        return self.root_dataset.dataset[root_idx]
 
     def __getattr__(self, attr):
-        return getattr(self.dataset, attr)
+        return getattr(self.root_dataset, attr)  # getattr(self.dataset, attr)
+
 
 class MoonwatcherClassification(Moonwatcher):
     def __init__(
@@ -535,3 +528,16 @@ class MoonwatcherDetection(Moonwatcher):
             description=description,
             datapoints_metadata=datapoints_metadata,
         )
+
+
+def get_original_indices(dataset: Union[Moonwatcher, Slice]) -> List[int]:
+    """
+    Recursively retrieve the original indices from a dataset or slice.
+    """
+    if isinstance(dataset, Slice):
+        parent_indices = get_original_indices(dataset.root_dataset)
+        return [parent_indices[i] for i in dataset.indices]
+    elif isinstance(dataset, Moonwatcher):
+        return list(range(len(dataset.dataset)))
+    else:
+        raise TypeError("Unsupported dataset type for get_original_indices.")

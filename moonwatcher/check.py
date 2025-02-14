@@ -7,7 +7,7 @@ from typing import Optional, List, Union, Dict, Any
 import torch
 
 from moonwatcher.utils.data import OPERATOR_DICT, TaskType
-from moonwatcher.dataset.dataset import Moonwatcher, Slice
+from moonwatcher.dataset.dataset import Moonwatcher, Slice, get_original_indices
 from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.metric import calculate_metric
 from moonwatcher.utils.helpers import get_current_timestamp
@@ -115,7 +115,7 @@ class Check:
     def __init__(
         self,
         name: str,
-        dataset_or_slice: Union[Moonwatcher, Slice],
+        dataset: Union[Moonwatcher, Slice],
         predictions: Union[torch.Tensor, List[Dict[str, Any]]],
         metric: str,
         metric_parameters: Optional[Dict] = None,
@@ -127,7 +127,7 @@ class Check:
     ):
         """
         :param name: Name of the check
-        :param dataset_or_slice: The dataset or slice on which to evaluate
+        :param dataset: The dataset or slice on which to evaluate
         :param predictions: Raw predictions (tensor for classification, list[dict] for detection)
         :param metric: Metric name (e.g. "Accuracy", "mAP", etc.)
         :param metric_parameters: Optional parameters for torchmetrics
@@ -138,7 +138,7 @@ class Check:
         :param value: Numeric threshold to compare against
         """
         self.name = name
-        self.dataset_or_slice = dataset_or_slice
+        self.dataset = dataset
         self.predictions = predictions
         self.metric = metric
         self.metric_parameters = metric_parameters or {}
@@ -155,10 +155,16 @@ class Check:
         """
         Execute the check (compute the metric, optionally compare to threshold).
         """
+        parent_dataset = self.dataset.root_dataset if isinstance(
+            self.dataset, Slice) else self.dataset
+        parent_dataset.add_predictions(self.predictions)
+        indices = get_original_indices(
+            dataset=self.dataset)
+
         # 1) Compute metric
         result_value = calculate_metric(
-            dataset_or_slice=self.dataset_or_slice,
-            predictions=self.predictions,
+            dataset=parent_dataset,
+            indices=indices,
             metric=self.metric,
             metric_parameters=self.metric_parameters,
             metric_class=self.metric_class,
@@ -171,11 +177,11 @@ class Check:
             success = op_func(result_value, self.value)
 
         # 3) Build report dict
-        if isinstance(self.dataset_or_slice, Slice):
-            ds_name = self.dataset_or_slice.root_dataset_name
-            slice_name = self.dataset_or_slice.name
+        if isinstance(self.dataset, Slice):
+            ds_name = self.dataset.root_dataset.name
+            slice_name = self.dataset.name
         else:
-            ds_name = self.dataset_or_slice.name
+            ds_name = self.dataset.name
             slice_name = None
 
         report = {
@@ -355,7 +361,7 @@ def automated_checking(
             check_name = f"{c['name']}_{mw_slice.name}"
             new_check = Check(
                 name=check_name,
-                dataset_or_slice=mw_slice,
+                dataset=mw_slice,
                 predictions=predictions,
                 metric=c["metric"],
                 metric_parameters=c.get("metric_parameters", None),
@@ -376,7 +382,7 @@ def automated_checking(
         check_name = f"{c['name']}_{mw_dataset.name}"
         new_check = Check(
             name=check_name,
-            dataset_or_slice=mw_dataset,
+            dataset=mw_dataset,
             predictions=predictions,
             metric=c["metric"],
             metric_parameters=c.get("metric_parameters", None),

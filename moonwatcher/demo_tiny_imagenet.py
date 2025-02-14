@@ -3,7 +3,7 @@ import zipfile
 import urllib.request
 import torch
 import torchvision
-from torchvision import transforms, datasets, models
+from torchvision import transforms, datasets
 from torch.utils.data import DataLoader, Subset
 from moonwatcher.utils.data import Task
 from moonwatcher.check import Check, CheckSuite
@@ -88,7 +88,7 @@ slice_dim = moonwatcher_dataset.slice_by_percentile("brightness", "<", 50)
 # Step 10) Create Checks
 check_bright = Check(
     name="accuracy_bright",
-    dataset_or_slice=slice_bright,
+    dataset=slice_bright,
     predictions=predictions,
     metric="Accuracy",
     operator=">",
@@ -96,7 +96,7 @@ check_bright = Check(
 )
 check_dim = Check(
     name="accuracy_dim",
-    dataset_or_slice=slice_dim,
+    dataset=slice_dim,
     predictions=predictions,
     metric="Accuracy",
     operator=">",
