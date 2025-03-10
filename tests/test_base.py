@@ -1,6 +1,6 @@
 import pytest
 
-from moonwatcher.base.base import MoonwatcherObject, DataType
+from moonwatcher.base.base import DataType, MoonwatcherObject
 
 valid_names = [
     "exampleName",

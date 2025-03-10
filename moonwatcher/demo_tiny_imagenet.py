@@ -12,15 +12,17 @@ ResNet18 model on a subset of the Tiny ImageNet dataset. It shows how to:
 """
 
 import os
-import zipfile
 import urllib.request
+import zipfile
+
 import torch
 import torchvision
-from torchvision import transforms, datasets
 from torch.utils.data import DataLoader, Subset
-from moonwatcher.utils.data import Task
+from torchvision import datasets, transforms
+
 from moonwatcher.check import Check, CheckSuite
 from moonwatcher.dataset.dataset import MoonwatcherClassification
+from moonwatcher.utils.data import Task
 
 # Step 1) Download the Dataset
 data_dir = "./tiny-imagenet-200"
@@ -46,7 +48,7 @@ def download_tiny_imagenet(data_dir: str, zip_file: str, url: str) -> None:
         print("Tiny ImageNet not found. Downloading...")
         urllib.request.urlretrieve(url, zip_file)
         print("Download complete. Extracting...")
-        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(".")
         print("Extraction complete.")
         os.remove(zip_file)
@@ -63,26 +65,30 @@ if not os.path.exists(checkpoint_path):
     print("Checkpoint downloaded.")
 
 # Step 3) Define the Preprocessing
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
+transform = transforms.Compose(
+    [
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
 
 # Step 4) Load the Dataset
 train_dataset = datasets.ImageFolder(
-    root=os.path.join(data_dir, "train"), transform=transform)
+    root=os.path.join(data_dir, "train"), transform=transform
+)
 subset_size = 100
 indices = torch.randperm(len(train_dataset))[:subset_size]
 subset = Subset(train_dataset, indices)
 train_loader = DataLoader(subset, batch_size=8, shuffle=False)
 
 # Step 5) Load the Model
-model = torchvision.models.get_model('resnet18', num_classes=200)
-model.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(
-    3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+model = torchvision.models.get_model("resnet18", num_classes=200)
+model.conv1 = torch.nn.Conv2d(
+    3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False
+)
 model.maxpool = torch.nn.Identity()
-checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
-model_weights = checkpoint['model']
+checkpoint = torch.load(checkpoint_path, map_location=torch.device("cpu"))
+model_weights = checkpoint["model"]
 model.load_state_dict(model_weights)
 model.eval()
 
@@ -100,17 +106,16 @@ moonwatcher_dataset = MoonwatcherClassification(
     name="tiny_imagenet_subset",
     dataset=subset,
     task=Task.MULTICLASS.value,
-    num_classes=200
+    num_classes=200,
 )
 
 # Step 8) Add Metadata
 moonwatcher_dataset.add_predefined_metadata("brightness")
 
 # Step 9) Add Model Predictions
-model_id = moonwatcher_dataset.add_model_predictions(
+moonwatcher_dataset.add_model_predictions(
     predictions=predictions,
-    model_name="resnet18",
-    model_metadata={"architecture": "ResNet18", "trained_on": "TinyImageNet"}
+    model_id="resnet18",
 )
 
 # Step 10) Create Slices
@@ -121,7 +126,7 @@ slice_dim = moonwatcher_dataset.slice_by_percentile("brightness", "<", 50)
 check_bright = Check(
     name="accuracy_bright",
     dataset=slice_bright,
-    model_id=model_id,
+    model_id="resnet18",
     metric="Accuracy",
     operator=">",
     value=0.5,
@@ -129,17 +134,14 @@ check_bright = Check(
 check_dim = Check(
     name="accuracy_dim",
     dataset=slice_dim,
-    model_id=model_id,
+    model_id="resnet18",
     metric="Accuracy",
     operator=">",
     value=0.5,
 )
 
 # Step 12) Create Check Suite
-check_suite = CheckSuite(
-    name="test_brightness",
-    checks=[check_bright, check_dim]
-)
+check_suite = CheckSuite(name="test_brightness", checks=[check_bright, check_dim])
 
 # Step 13) Run Checks
 test_results = check_suite.run_all(show=True)

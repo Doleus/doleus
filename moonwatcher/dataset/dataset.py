@@ -1,20 +1,21 @@
 """Dataset classes and utilities for model evaluation and analysis."""
 
-from typing import List, Dict, Any, Callable, Union, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
+
+import numpy as np
+import torch
+import torchvision.transforms as transforms
+from PIL import Image
+from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
-import torch
-import numpy as np
-from PIL import Image
-import torchvision.transforms as transforms
-from torch.utils.data import Dataset, Subset
-
+from moonwatcher.annotations import (BoundingBoxes, GroundTruths, Labels,
+                                     Predictions)
 from moonwatcher.datapoint import Datapoint
+from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
+from moonwatcher.prediction_store import PredictionStore
 from moonwatcher.utils.data import OPERATOR_DICT, TaskType
 from moonwatcher.utils.helpers import get_current_timestamp
-from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
-from moonwatcher.annotations import GroundTruths, Predictions, Labels, BoundingBoxes
-from moonwatcher.prediction_store import PredictionStore
 
 
 def find_root_dataset(dataset: Dataset) -> Dataset:
@@ -37,7 +38,9 @@ def find_root_dataset(dataset: Dataset) -> Dataset:
     return current
 
 
-def _get_raw_image(root_dataset: Dataset, index: int) -> Union[Image.Image, np.ndarray, torch.Tensor]:
+def _get_raw_image(
+    root_dataset: Dataset, index: int
+) -> Union[Image.Image, np.ndarray, torch.Tensor]:
     """Retrieve the original image from a dataset bypassing its transforms.
 
     Parameters
@@ -221,14 +224,17 @@ class Moonwatcher(Dataset):
         """
         self.groundtruths = GroundTruths(dataset=self)
 
-        for idx in tqdm(range(len(self.dataset)), desc=f"Building GROUND TRUTHS for {self.name}"):
+        for idx in tqdm(
+            range(len(self.dataset)), desc=f"Building GROUND TRUTHS for {self.name}"
+        ):
             data = self.dataset[idx]
 
             if self.task_type == TaskType.CLASSIFICATION.value:
                 # Expect (image, label)
                 if len(data) < 2:
                     raise ValueError(
-                        "Expected (image, label) from dataset, got fewer elements.")
+                        "Expected (image, label) from dataset, got fewer elements."
+                    )
                 _, label = data
 
                 # Convert label to tensor of shape [1] if needed
@@ -244,17 +250,18 @@ class Moonwatcher(Dataset):
                 # Expect (image, bounding_boxes, labels)
                 if len(data) != 3:
                     raise ValueError(
-                        "Expected (image, bounding_boxes, labels) for detection.")
+                        "Expected (image, bounding_boxes, labels) for detection."
+                    )
                 _, bounding_boxes, labels = data
 
                 if not isinstance(bounding_boxes, torch.Tensor):
-                    bounding_boxes = torch.tensor(
-                        bounding_boxes, dtype=torch.float32)
+                    bounding_boxes = torch.tensor(bounding_boxes, dtype=torch.float32)
                 if not isinstance(labels, torch.Tensor):
                     labels = torch.tensor(labels, dtype=torch.long)
 
-                ann = BoundingBoxes(datapoint_number=idx,
-                                    boxes_xyxy=bounding_boxes, labels=labels)
+                ann = BoundingBoxes(
+                    datapoint_number=idx, boxes_xyxy=bounding_boxes, labels=labels
+                )
                 self.groundtruths.add(ann)
 
             else:
@@ -263,7 +270,7 @@ class Moonwatcher(Dataset):
     # -------------------------------------------------------------------------
     #                           PREDICTIONS
     # -------------------------------------------------------------------------
-    def add_predictions(self, predictions: Any):
+    def _set_predictions(self, predictions: Any):
         """Add model predictions to the dataset.
 
         Parameters
@@ -289,12 +296,14 @@ class Moonwatcher(Dataset):
         if self.task_type == TaskType.CLASSIFICATION.value:
             if not isinstance(predictions, torch.Tensor):
                 raise TypeError(
-                    "For classification, predictions must be a torch.Tensor.")
+                    "For classification, predictions must be a torch.Tensor."
+                )
 
             num_samples = predictions.shape[0]
             if num_samples != len(self.dataset):
                 raise ValueError(
-                    "Mismatch between predictions size and dataset length.")
+                    "Mismatch between predictions size and dataset length."
+                )
 
             # If shape is [N], assume these are predicted labels (class IDs)
             # If shape is [N, C], assume these are logits or probabilities
@@ -302,8 +311,7 @@ class Moonwatcher(Dataset):
                 # predicted labels
                 for i in range(num_samples):
                     label_val = predictions[i].unsqueeze(0)
-                    ann = Labels(datapoint_number=i,
-                                 labels=label_val, scores=None)
+                    ann = Labels(datapoint_number=i, labels=label_val, scores=None)
                     self.predictions.add(ann)
 
             elif predictions.dim() == 2:
@@ -316,28 +324,34 @@ class Moonwatcher(Dataset):
                     scores = torch.softmax(logit_row, dim=0)
                     ann = Labels(
                         datapoint_number=i,
-                        labels=pred_label,       # shape [1]
-                        scores=scores           # shape [num_classes]
+                        labels=pred_label,  # shape [1]
+                        scores=scores,  # shape [num_classes]
                     )
                     self.predictions.add(ann)
 
             else:
-                raise ValueError(
-                    "Classification predictions must be 1D or 2D tensor.")
+                raise ValueError("Classification predictions must be 1D or 2D tensor.")
 
         # Detection case: predictions is typically a list of length N
         elif self.task_type == TaskType.DETECTION.value:
             if not isinstance(predictions, list):
                 raise TypeError(
-                    "For detection, predictions must be a list of length N.")
+                    "For detection, predictions must be a list of length N."
+                )
+            print(f"predictions: {predictions}")
+            print(f"len(predictions): {len(predictions)}")
+            print(f"self.dataset: {self.dataset}")
+            print(f"len(self.dataset): {len(self.dataset)}")
             if len(predictions) != len(self.dataset):
                 raise ValueError(
-                    "Mismatch between predictions list and dataset length.")
+                    "Mismatch between predictions list and dataset length."
+                )
 
             # Each element should look like {"boxes": (M,4), "labels": (M,), "scores": (M,)}
-            for i, pred_dict in enumerate(tqdm(predictions, desc="Building DETECTION predictions")):
-                boxes_xyxy = torch.tensor(
-                    pred_dict["boxes"], dtype=torch.float32)
+            for i, pred_dict in enumerate(
+                tqdm(predictions, desc="Building DETECTION predictions")
+            ):
+                boxes_xyxy = torch.tensor(pred_dict["boxes"], dtype=torch.float32)
                 labels = torch.tensor(pred_dict["labels"], dtype=torch.long)
                 scores = torch.tensor(pred_dict["scores"], dtype=torch.float32)
 
@@ -345,7 +359,7 @@ class Moonwatcher(Dataset):
                     datapoint_number=i,
                     boxes_xyxy=boxes_xyxy,
                     labels=labels,
-                    scores=scores
+                    scores=scores,
                 )
                 self.predictions.add(ann)
 
@@ -355,35 +369,26 @@ class Moonwatcher(Dataset):
     def add_model_predictions(
         self,
         predictions: Union[torch.Tensor, List[Dict[str, Any]]],
-        model_name: str,
-        model_metadata: Dict[str, Any] = None
-    ) -> str:
-        """Add model predictions and store them in the prediction store.
+        model_id: str,
+    ) -> None:
+        """Add model predictions to the dataset.
 
         Parameters
         ----------
         predictions : Union[torch.Tensor, List[Dict[str, Any]]]
-            Model predictions in the format expected by add_predictions.
-        model_name : str
-            Name of the model that generated the predictions.
-        model_metadata : Dict[str, Any], optional
-            Additional metadata about the model, by default None.
-
-        Returns
-        -------
-        str
-            Unique identifier for these predictions in the prediction store.
+            Model predictions to store. For classification, this should be a tensor
+            of shape [N, C] where N is the number of samples and C is the number
+            of classes. For detection, this should be a list of dictionaries with
+            'boxes', 'labels', and 'scores' keys.
+        model_id : str
+            Name of the model that generated these predictions
         """
-        model_id = self.prediction_store.add_predictions(
+        # Store predictions in the prediction store
+        self.prediction_store.add_predictions(
             predictions=predictions,
-            dataset_name=self.name,
-            model_name=model_name,
-            model_metadata=model_metadata
+            dataset_id=self.name,
+            model_id=model_id,
         )
-        
-        self.add_predictions(predictions)
-        
-        return model_id
 
     # -------------------------------------------------------------------------
     #                            METADATA METHODS
@@ -404,12 +409,16 @@ class Moonwatcher(Dataset):
         root_dataset = find_root_dataset(self.dataset)
         raw_image = _get_raw_image(root_dataset, index)
         if isinstance(raw_image, torch.Tensor):
-            raw_image = (raw_image.permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
+            raw_image = (raw_image.permute(1, 2, 0).cpu().numpy() * 255).astype(
+                np.uint8
+            )
         elif isinstance(raw_image, Image.Image):
             raw_image = np.array(raw_image)
         return raw_image
 
-    def add_metadata(self, metadata_key: str, value_or_func: Union[Any, Callable[[np.ndarray], Any]]):
+    def add_metadata(
+        self, metadata_key: str, value_or_func: Union[Any, Callable[[np.ndarray], Any]]
+    ):
         """Applies a custom function to an image to generate metadata and stores the computed metadata values for each datapoint.
 
         Parameters
@@ -421,14 +430,16 @@ class Moonwatcher(Dataset):
             that takes a numpy image array and returns a computed value.
         """
         is_func = callable(value_or_func)
-        
-        for i in tqdm(range(len(self.dataset)), desc=f"Adding metadata '{metadata_key}'"):
+
+        for i in tqdm(
+            range(len(self.dataset)), desc=f"Adding metadata '{metadata_key}'"
+        ):
             if is_func:
                 image = self._prepare_image_for_metadata(i)
                 value = value_or_func(image)
             else:
                 value = value_or_func
-                
+
             self.datapoints[i].add_metadata(metadata_key, value)
 
     def add_metadata_from_list(self, metadata_list: List[Dict[str, Any]]):
@@ -445,7 +456,9 @@ class Moonwatcher(Dataset):
         If the metadata list is shorter than the dataset, only the first
         len(metadata_list) datapoints will receive metadata.
         """
-        for i, md_dict in enumerate(tqdm(metadata_list, desc="Adding metadata from list")):
+        for i, md_dict in enumerate(
+            tqdm(metadata_list, desc="Adding metadata from list")
+        ):
             if i >= len(self.datapoints):
                 break
             self.datapoints[i].metadata.update(md_dict)
@@ -466,7 +479,7 @@ class Moonwatcher(Dataset):
         """
         if isinstance(keys, str):
             keys = [keys]
-            
+
         for key in keys:
             if key not in ATTRIBUTE_FUNCTIONS:
                 raise ValueError(f"Unknown predefined metadata key: {key}")
@@ -475,7 +488,9 @@ class Moonwatcher(Dataset):
     # -------------------------------------------------------------------------
     #                                SLICING
     # -------------------------------------------------------------------------
-    def _generate_filename(self, metadata_key: str, operator_str: str, value: Any) -> str:
+    def _generate_filename(
+        self, metadata_key: str, operator_str: str, value: Any
+    ) -> str:
         """Generate a default filename for a slice based on its criteria.
 
         Parameters
@@ -506,7 +521,13 @@ class Moonwatcher(Dataset):
             f"{str(value).replace('.', '_')}"
         )
 
-    def slice_by_threshold(self, metadata_key: str, operator_str: str, threshold: Any, slice_name: str = None):
+    def slice_by_threshold(
+        self,
+        metadata_key: str,
+        operator_str: str,
+        threshold: Any,
+        slice_name: str = None,
+    ):
         """Create a slice based on a threshold comparison of metadata values.
 
         Parameters
@@ -526,14 +547,22 @@ class Moonwatcher(Dataset):
             A new slice containing datapoints that meet the threshold criteria.
         """
         op_func = OPERATOR_DICT[operator_str]
-        indices = [i for i, dp in enumerate(self.datapoints)
-                   if op_func(dp.get_metadata(metadata_key), threshold)]
+        indices = [
+            i
+            for i, dp in enumerate(self.datapoints)
+            if op_func(dp.get_metadata(metadata_key), threshold)
+        ]
         if slice_name is None:
-            slice_name = self._generate_filename(
-                metadata_key, operator_str, threshold)
+            slice_name = self._generate_filename(metadata_key, operator_str, threshold)
         return Slice(name=slice_name, root_dataset=self, indices=indices)
 
-    def slice_by_percentile(self, metadata_key: str, operator_str: str, percentile: float, slice_name: str = None):
+    def slice_by_percentile(
+        self,
+        metadata_key: str,
+        operator_str: str,
+        percentile: float,
+        slice_name: str = None,
+    ):
         """Create a slice based on a percentile threshold of metadata values.
 
         Parameters
@@ -555,11 +584,13 @@ class Moonwatcher(Dataset):
         op_func = OPERATOR_DICT[operator_str]
         values = [dp.get_metadata(metadata_key) for dp in self.datapoints]
         threshold = np.percentile(values, percentile)
-        indices = [i for i, dp in enumerate(self.datapoints)
-                   if op_func(dp.get_metadata(metadata_key), threshold)]
+        indices = [
+            i
+            for i, dp in enumerate(self.datapoints)
+            if op_func(dp.get_metadata(metadata_key), threshold)
+        ]
         if slice_name is None:
-            slice_name = self._generate_filename(
-                metadata_key, operator_str, percentile)
+            slice_name = self._generate_filename(metadata_key, operator_str, percentile)
         return Slice(name=slice_name, root_dataset=self, indices=indices)
 
     def slice_by_metadata_value(
@@ -567,7 +598,7 @@ class Moonwatcher(Dataset):
         metadata_key: str,
         target_value: Any,
         slice_name: Optional[str] = None,
-        tolerance: float = 1e-6
+        tolerance: float = 1e-6,
     ) -> "Slice":
         """Create a slice containing datapoints with a specific metadata value.
 
@@ -594,7 +625,7 @@ class Moonwatcher(Dataset):
         ValueError
             If no datapoints match the target value.
         """
-        
+
         if not any(metadata_key in dp.metadata for dp in self.datapoints):
             raise KeyError(f"Metadata key '{metadata_key}' not found in any datapoint")
 
@@ -602,13 +633,15 @@ class Moonwatcher(Dataset):
         for i, dp in enumerate(self.datapoints):
             try:
                 value = dp.get_metadata(metadata_key)
-                
+
                 # Handle different types of comparisons
                 if isinstance(target_value, float) and isinstance(value, (int, float)):
                     # Use tolerance for float comparisons
                     if abs(value - target_value) <= tolerance:
                         indices.append(i)
-                elif isinstance(target_value, np.ndarray) and isinstance(value, np.ndarray):
+                elif isinstance(target_value, np.ndarray) and isinstance(
+                    value, np.ndarray
+                ):
                     # Handle numpy array comparison
                     if np.array_equal(value, target_value):
                         indices.append(i)
@@ -638,7 +671,7 @@ class Moonwatcher(Dataset):
         self,
         class_names: Optional[List[str]] = None,
         class_ids: Optional[List[int]] = None,
-        slice_name: Optional[str] = None
+        slice_name: Optional[str] = None,
     ) -> "Slice":
         """Create a slice containing datapoints with specific ground truth classes.
 
@@ -675,8 +708,7 @@ class Moonwatcher(Dataset):
             valid_names = set(self.label_to_name.values())
             invalid_names = set(class_names) - valid_names
             if invalid_names:
-                raise ValueError(
-                    f"Invalid class names: {sorted(invalid_names)}")
+                raise ValueError(f"Invalid class names: {sorted(invalid_names)}")
 
             # Convert to unique class IDs
             class_ids = [
@@ -704,13 +736,14 @@ class Moonwatcher(Dataset):
                 # Works for:
                 # - Classification (single/multi-label): labels tensor shape [N]
                 # - Detection: labels tensor shape [M] (per-box labels)
-                if torch.any(torch.isin(ground_truth.labels, torch.tensor(list(class_id_set)))):
+                if torch.any(
+                    torch.isin(ground_truth.labels, torch.tensor(list(class_id_set)))
+                ):
                     filtered_indices.append(original_idx)
 
         # Generate default name if needed
         if not slice_name:
-            target_classes = class_names if class_names else sorted(
-                class_id_set)
+            target_classes = class_names if class_names else sorted(class_id_set)
             class_str = "_".join(map(str, target_classes))[:50]  # Limit length
             slice_name = f"gt_class_{class_str}"
 

@@ -1,7 +1,6 @@
 import operator as op
 from enum import Enum
 
-
 OPERATOR_DICT = {
     "<": op.lt,
     ">": op.gt,
