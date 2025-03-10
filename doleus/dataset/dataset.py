@@ -9,13 +9,12 @@ from PIL import Image
 from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
-from moonwatcher.annotations import (BoundingBoxes, GroundTruths, Labels,
-                                     Predictions)
-from moonwatcher.datapoint import Datapoint
-from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
-from moonwatcher.prediction_store import PredictionStore
-from moonwatcher.utils.data import OPERATOR_DICT, TaskType
-from moonwatcher.utils.helpers import get_current_timestamp
+from doleus.annotations import BoundingBoxes, GroundTruths, Labels, Predictions
+from doleus.datapoint import Datapoint
+from doleus.dataset.metadata import ATTRIBUTE_FUNCTIONS
+from doleus.prediction_store import PredictionStore
+from doleus.utils.data import OPERATOR_DICT, TaskType
+from doleus.utils.helpers import get_current_timestamp
 
 
 def find_root_dataset(dataset: Dataset) -> Dataset:
@@ -103,7 +102,7 @@ def _pil_or_numpy_to_tensor(
         raise TypeError(f"Unsupported image type {type(image)}")
 
 
-class Moonwatcher(Dataset):
+class Doleus(Dataset):
     """Dataset wrapper for model evaluation and analysis.
 
     This class wraps a PyTorch dataset and provides functionality for:
@@ -125,7 +124,7 @@ class Moonwatcher(Dataset):
         metadata: Dict[str, Any] = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
     ):
-        """Initialize a Moonwatcher dataset wrapper.
+        """Initialize a Doleus dataset wrapper.
 
         Parameters
         ----------
@@ -750,10 +749,10 @@ class Moonwatcher(Dataset):
         return Slice(name=slice_name, root_dataset=self, indices=filtered_indices)
 
 
-class Slice(Moonwatcher):
-    """A subset of a Moonwatcher dataset containing only selected datapoints.
+class Slice(Doleus):
+    """A subset of a Doleus dataset containing only selected datapoints.
 
-    A Slice maintains a reference to its parent Moonwatcher dataset and provides
+    A Slice maintains a reference to its parent Doleus dataset and provides
     access to a subset of its datapoints. It inherits all functionality from
     the parent dataset while operating only on the selected subset.
     """
@@ -761,7 +760,7 @@ class Slice(Moonwatcher):
     def __init__(
         self,
         name: str,
-        root_dataset: Moonwatcher,
+        root_dataset: Doleus,
         indices: List[int],
     ):
         """Initialize a Slice instance.
@@ -770,7 +769,7 @@ class Slice(Moonwatcher):
         ----------
         name : str
             Name of the slice.
-        root_dataset : Moonwatcher
+        root_dataset : Doleus
             The parent dataset this slice is created from.
         indices : List[int]
             List of indices from the parent dataset to include in this slice.
@@ -823,8 +822,8 @@ class Slice(Moonwatcher):
         return getattr(self.root_dataset, attr)
 
 
-class MoonwatcherClassification(Moonwatcher):
-    """Moonwatcher dataset wrapper specialized for classification tasks."""
+class DoleusClassification(Doleus):
+    """Doleus dataset wrapper specialized for classification tasks."""
 
     def __init__(
         self,
@@ -836,7 +835,7 @@ class MoonwatcherClassification(Moonwatcher):
         metadata: Dict[str, Any] = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
     ):
-        """Initialize a MoonwatcherClassification dataset.
+        """Initialize a DoleusClassification dataset.
 
         Parameters
         ----------
@@ -867,8 +866,8 @@ class MoonwatcherClassification(Moonwatcher):
         )
 
 
-class MoonwatcherDetection(Moonwatcher):
-    """Moonwatcher dataset wrapper specialized for detection tasks."""
+class DoleusDetection(Doleus):
+    """Doleus dataset wrapper specialized for detection tasks."""
 
     def __init__(
         self,
@@ -879,7 +878,7 @@ class MoonwatcherDetection(Moonwatcher):
         metadata: Dict[str, Any] = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
     ):
-        """Initialize a MoonwatcherDetection dataset.
+        """Initialize a DoleusDetection dataset.
 
         Parameters
         ----------
@@ -909,12 +908,12 @@ class MoonwatcherDetection(Moonwatcher):
         )
 
 
-def get_original_indices(dataset: Union[Moonwatcher, Slice]) -> List[int]:
+def get_original_indices(dataset: Union[Doleus, Slice]) -> List[int]:
     """Get the original dataset indices for a dataset or slice.
 
     Parameters
     ----------
-    dataset : Union[Moonwatcher, Slice]
+    dataset : Union[Doleus, Slice]
         The dataset or slice to get indices for.
 
     Returns
@@ -925,12 +924,12 @@ def get_original_indices(dataset: Union[Moonwatcher, Slice]) -> List[int]:
     Raises
     ------
     TypeError
-        If the dataset is not a Moonwatcher or Slice instance.
+        If the dataset is not a Doleus or Slice instance.
     """
     if isinstance(dataset, Slice):
         parent_indices = get_original_indices(dataset.root_dataset)
         return [parent_indices[i] for i in dataset.indices]
-    elif isinstance(dataset, Moonwatcher):
+    elif isinstance(dataset, Doleus):
         return list(range(len(dataset.dataset)))
     else:
         raise TypeError("Unsupported dataset type for get_original_indices.")

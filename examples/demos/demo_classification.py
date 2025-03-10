@@ -1,16 +1,3 @@
-"""Demo script for evaluating a ResNet18 model on Tiny ImageNet.
-
-This script demonstrates the use of Moonwatcher for evaluating a pretrained
-ResNet18 model on a subset of the Tiny ImageNet dataset. It shows how to:
-1. Download and prepare the dataset
-2. Load and preprocess the data
-3. Load a pretrained model
-4. Generate predictions
-5. Create a Moonwatcher dataset
-6. Add metadata and slices
-7. Create and run checks
-"""
-
 import os
 import urllib.request
 import zipfile
@@ -20,9 +7,9 @@ import torchvision
 from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 
-from moonwatcher.check import Check, CheckSuite
-from moonwatcher.dataset.dataset import MoonwatcherClassification
-from moonwatcher.utils.data import Task
+from doleus.check import Check, CheckSuite
+from doleus.dataset.dataset import DoleusClassification
+from doleus.utils.data import Task
 
 # Step 1) Download the Dataset
 data_dir = "./tiny-imagenet-200"
@@ -102,7 +89,7 @@ predictions = torch.cat(predictions, dim=0)
 
 # TODO: Binary classification does not work
 # Step 7) Create Moonwatcher Dataset
-moonwatcher_dataset = MoonwatcherClassification(
+doleus_dataset = DoleusClassification(
     name="tiny_imagenet_subset",
     dataset=subset,
     task=Task.MULTICLASS.value,
@@ -110,17 +97,17 @@ moonwatcher_dataset = MoonwatcherClassification(
 )
 
 # Step 8) Add Metadata
-moonwatcher_dataset.add_predefined_metadata("brightness")
+doleus_dataset.add_predefined_metadata("brightness")
 
 # Step 9) Add Model Predictions
-moonwatcher_dataset.add_model_predictions(
+doleus_dataset.add_model_predictions(
     predictions=predictions,
     model_id="resnet18",
 )
 
 # Step 10) Create Slices
-slice_bright = moonwatcher_dataset.slice_by_percentile("brightness", ">=", 50)
-slice_dim = moonwatcher_dataset.slice_by_percentile("brightness", "<", 50)
+slice_bright = doleus_dataset.slice_by_percentile("brightness", ">=", 50)
+slice_dim = doleus_dataset.slice_by_percentile("brightness", "<", 50)
 
 # Step 11) Create Checks
 check_bright = Check(

@@ -15,7 +15,6 @@ multi-label classifications while maintaining the requirement for 1D integer ten
 
 import pytest
 import torch
-
 from moonwatcher.annotations import (Annotations, BoundingBoxes, GroundTruths,
                                      Labels, PredictedBoundingBoxes,
                                      PredictedLabels, Predictions)

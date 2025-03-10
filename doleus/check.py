@@ -3,11 +3,10 @@
 import json
 from typing import Any, Dict, List, Optional, Union
 
-from moonwatcher.dataset.dataset import (Moonwatcher, Slice,
-                                         get_original_indices)
-from moonwatcher.metric import calculate_metric
-from moonwatcher.utils.data import OPERATOR_DICT
-from moonwatcher.utils.helpers import get_current_timestamp
+from doleus.dataset.dataset import Doleus, Slice, get_original_indices
+from doleus.metric import calculate_metric
+from doleus.utils.data import OPERATOR_DICT
+from doleus.utils.helpers import get_current_timestamp
 
 # At the top of the file with other imports
 REPORT_FORMATTING = {
@@ -140,7 +139,7 @@ class Check:
     def __init__(
         self,
         name: str,
-        dataset: Union[Moonwatcher, Slice],
+        dataset: Union[Doleus, Slice],
         model_id: str,
         metric: str,
         metric_parameters: Optional[Dict] = None,
@@ -154,7 +153,7 @@ class Check:
         ----------
         name : str
             Name of the check.
-        dataset : Union[Moonwatcher, Slice]
+        dataset : Union[Doleus, Slice]
             The dataset or slice on which to evaluate.
         model_id : str
             The name of the model associated with the predictions.

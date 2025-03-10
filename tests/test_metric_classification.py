@@ -1,6 +1,5 @@
 import pytest
 import torch
-
 from moonwatcher.dataset.dataset import MoonwatcherDataset
 from moonwatcher.metric import calculate_metric_internal
 

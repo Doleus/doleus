@@ -3,10 +3,9 @@ import uuid
 import numpy as np
 import pytest
 import torch
-from torch.utils.data import Dataset
-
 from moonwatcher.dataset.dataset import (MoonwatcherClassification,
                                          MoonwatcherDetection)
+from torch.utils.data import Dataset
 
 
 # Classification Dataset Fixtures

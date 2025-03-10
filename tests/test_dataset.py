@@ -4,12 +4,11 @@ import uuid
 import numpy as np
 import pytest
 import torch
-from torch.utils.data import Dataset
-
 from moonwatcher.check import Check
 from moonwatcher.dataset.dataset import (MoonwatcherClassification,
                                          MoonwatcherDetection,
                                          get_original_indices)
+from torch.utils.data import Dataset
 
 
 @pytest.fixture

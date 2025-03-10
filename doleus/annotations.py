@@ -300,7 +300,7 @@ class Predictions(Annotations):
         Parameters
         ----------
         dataset
-            Reference to the dataset (e.g., Moonwatcher object).
+            Reference to the dataset (e.g., Doleus object).
         predictions : List[Annotation], optional
             List of prediction annotations (Labels or BoundingBoxes with scores),
             by default None.
@@ -332,7 +332,7 @@ class GroundTruths(Annotations):
         Parameters
         ----------
         dataset
-            Reference to the dataset (e.g., Moonwatcher object).
+            Reference to the dataset (e.g., Doleus object).
         groundtruths : List[Annotation], optional
             List of ground truth annotations (Labels or BoundingBoxes),
             by default None.

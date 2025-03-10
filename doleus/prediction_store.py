@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 
 import torch
 
-from moonwatcher.utils.helpers import get_current_timestamp
+from doleus.utils.helpers import get_current_timestamp
 
 
 @dataclass

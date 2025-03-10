@@ -5,9 +5,9 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 import torchmetrics
 
-from moonwatcher.annotations import BoundingBoxes, Labels
-from moonwatcher.dataset.dataset import Moonwatcher, Slice
-from moonwatcher.utils.data import TaskType
+from doleus.annotations import BoundingBoxes, Labels
+from doleus.dataset.dataset import Doleus, Slice
+from doleus.utils.data import TaskType
 
 # -----------------------------------------------------------------------------
 # Torchmetrics Registry
@@ -46,7 +46,7 @@ _METRIC_KEYS = {
 
 
 def _parse_metric_class(
-    metric_class: Optional[Union[int, str]], dataset: Moonwatcher
+    metric_class: Optional[Union[int, str]], dataset: Doleus
 ) -> Optional[int]:
     """Parse and validate the metric class parameter.
 
@@ -54,7 +54,7 @@ def _parse_metric_class(
     ----------
     metric_class : Optional[Union[int, str]]
         The metric class to parse. Can be an integer (class ID) or string (class name).
-    dataset : Moonwatcher
+    dataset : Doleus
         The dataset containing the label_to_name mapping.
 
     Returns
@@ -116,7 +116,7 @@ def _convert_detection_dicts(annotations_list: List[Dict[str, Any]]) -> None:
 def _calculate_classification_metric(
     groundtruths_loaded: List[Labels],
     predictions_loaded: List[Labels],
-    dataset: Moonwatcher,
+    dataset: Doleus,
     metric: str,
     metric_parameters: Dict[str, Any],
     metric_class: Optional[Union[int, str]],
@@ -129,7 +129,7 @@ def _calculate_classification_metric(
         List of ground truth label annotations.
     predictions_loaded : List[Labels]
         List of predicted label annotations.
-    dataset : Moonwatcher
+    dataset : Doleus
         The dataset containing task and class information.
     metric : str
         Name of the metric to compute.
@@ -202,7 +202,7 @@ def _calculate_classification_metric(
 def _calculate_detection_metric(
     groundtruths_loaded: List[BoundingBoxes],
     predictions_loaded: List[BoundingBoxes],
-    dataset: Moonwatcher,
+    dataset: Doleus,
     metric: str,
     metric_parameters: Dict[str, Any],
     metric_class: Optional[Union[int, str]],
@@ -215,7 +215,7 @@ def _calculate_detection_metric(
         List of ground truth bounding box annotations.
     predictions_loaded : List[BoundingBoxes]
         List of predicted bounding box annotations.
-    dataset : Moonwatcher
+    dataset : Doleus
         The dataset containing task and class information.
     metric : str
         Name of the metric to compute.
@@ -281,7 +281,7 @@ def _calculate_detection_metric(
 
 
 def calculate_metric(
-    dataset: Union[Moonwatcher, Slice],
+    dataset: Union[Doleus, Slice],
     indices: List[int],
     metric: str,
     metric_parameters: Optional[Dict[str, Any]] = None,
@@ -291,7 +291,7 @@ def calculate_metric(
 
     Parameters
     ----------
-    dataset : Union[Moonwatcher, Slice]
+    dataset : Union[Doleus, Slice]
         The dataset or slice to compute metrics on.
     indices : List[int]
         List of indices to compute the metric for.

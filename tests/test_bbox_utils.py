@@ -1,5 +1,4 @@
 import pytest
-
 from moonwatcher.utils.bbox_utils import box_xywh_abs_to_xyxy_abs
 
 

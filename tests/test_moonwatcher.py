@@ -1,11 +1,10 @@
 import numpy as np
 import pytest
 import torch
-from torch.utils.data import Dataset, Subset
-
 from moonwatcher.check import Check, CheckSuite
 from moonwatcher.dataset.dataset import MoonwatcherClassification, Slice
 from moonwatcher.utils.data import Task, TaskType
+from torch.utils.data import Dataset, Subset
 
 
 class DummyDataset(Dataset):

@@ -8,9 +8,9 @@ from torchvision.models.detection import (FasterRCNN_ResNet50_FPN_V2_Weights,
                                           fasterrcnn_resnet50_fpn_v2)
 from torchvision.ops import box_convert
 
-from moonwatcher.check import Check, CheckSuite
+from doleus.check import Check, CheckSuite
 # Import Moonwatcher components for evaluation
-from moonwatcher.dataset.dataset import MoonwatcherDetection
+from doleus.dataset.dataset import DoleusDetection
 
 # TODO: Check if I use the correct transform
 # TODO: Make the dataset downloadable
@@ -99,24 +99,24 @@ with torch.no_grad():
 # Step 5: Create a Moonwatcher Dataset Wrapper and Add Metadata
 # ================================
 # Wrap the dataset subset for evaluation with Moonwatcher
-moonwatcher_dataset = MoonwatcherDetection(
+doleus_dataset = DoleusDetection(
     name="tiny-coco-val-subset",
     dataset=dataset_subset,
     num_classes=91,  # COCO has 91 classes
 )
 
 # Add predefined metadata ("brightness") to allow slicing based on image properties
-moonwatcher_dataset.add_predefined_metadata("brightness")
+doleus_dataset.add_predefined_metadata("brightness")
 
 # Add model predictions to the dataset
-moonwatcher_dataset.add_model_predictions(
+doleus_dataset.add_model_predictions(
     predictions=predictions_list,
     model_id="faster_rcnn",
 )
 
 # Create slices based on brightness percentile
-slice_bright = moonwatcher_dataset.slice_by_percentile("brightness", ">=", 50)
-slice_dim = moonwatcher_dataset.slice_by_percentile("brightness", "<", 50)
+slice_bright = doleus_dataset.slice_by_percentile("brightness", ">=", 50)
+slice_dim = doleus_dataset.slice_by_percentile("brightness", "<", 50)
 
 
 # ================================
@@ -126,7 +126,7 @@ slice_dim = moonwatcher_dataset.slice_by_percentile("brightness", "<", 50)
 checks = [
     Check(
         name="mAP_overall",
-        dataset=moonwatcher_dataset,
+        dataset=doleus_dataset,
         model_id="faster_rcnn",
         metric="mAP",
     ),
@@ -144,7 +144,7 @@ checks = [
     ),
     Check(
         name="IoU_overall",
-        dataset=moonwatcher_dataset,
+        dataset=doleus_dataset,
         model_id="faster_rcnn",
         metric="IntersectionOverUnion",
     ),
