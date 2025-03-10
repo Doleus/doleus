@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 
 from doleus.check import Check, CheckSuite
-from doleus.dataset.dataset import DoleusClassification
+from doleus.datasets import DoleusClassification
 from doleus.utils.data import Task
 
 # Step 1) Download the Dataset

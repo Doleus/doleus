@@ -1,4 +1,4 @@
-"""Dataset classes and utilities for model evaluation and analysis."""
+"""Core dataset classes and utilities for model evaluation and analysis."""
 
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -337,10 +337,7 @@ class Doleus(Dataset):
                 raise TypeError(
                     "For detection, predictions must be a list of length N."
                 )
-            print(f"predictions: {predictions}")
-            print(f"len(predictions): {len(predictions)}")
-            print(f"self.dataset: {self.dataset}")
-            print(f"len(self.dataset): {len(self.dataset)}")
+
             if len(predictions) != len(self.dataset):
                 raise ValueError(
                     "Mismatch between predictions list and dataset length."
@@ -553,6 +550,10 @@ class Doleus(Dataset):
         ]
         if slice_name is None:
             slice_name = self._generate_filename(metadata_key, operator_str, threshold)
+
+        # Import here to avoid circular import
+        from doleus.datasets.slice import Slice
+
         return Slice(name=slice_name, root_dataset=self, indices=indices)
 
     def slice_by_percentile(
@@ -590,6 +591,10 @@ class Doleus(Dataset):
         ]
         if slice_name is None:
             slice_name = self._generate_filename(metadata_key, operator_str, percentile)
+
+        # Import here to avoid circular import
+        from doleus.datasets.slice import Slice
+
         return Slice(name=slice_name, root_dataset=self, indices=indices)
 
     def slice_by_metadata_value(
@@ -598,7 +603,7 @@ class Doleus(Dataset):
         target_value: Any,
         slice_name: Optional[str] = None,
         tolerance: float = 1e-6,
-    ) -> "Slice":
+    ):
         """Create a slice containing datapoints with a specific metadata value.
 
         Parameters
@@ -664,6 +669,9 @@ class Doleus(Dataset):
             value_str = "".join(c if c.isalnum() else "_" for c in value_str)
             slice_name = f"{metadata_key}_{value_str}"
 
+        # Import here to avoid circular import
+        from doleus.datasets.slice import Slice
+
         return Slice(name=slice_name, root_dataset=self, indices=indices)
 
     def slice_by_groundtruth_class(
@@ -671,7 +679,7 @@ class Doleus(Dataset):
         class_names: Optional[List[str]] = None,
         class_ids: Optional[List[int]] = None,
         slice_name: Optional[str] = None,
-    ) -> "Slice":
+    ):
         """Create a slice containing datapoints with specific ground truth classes.
 
         Parameters
@@ -746,169 +754,13 @@ class Doleus(Dataset):
             class_str = "_".join(map(str, target_classes))[:50]  # Limit length
             slice_name = f"gt_class_{class_str}"
 
+        # Import here to avoid circular import
+        from doleus.datasets.slice import Slice
+
         return Slice(name=slice_name, root_dataset=self, indices=filtered_indices)
 
 
-class Slice(Doleus):
-    """A subset of a Doleus dataset containing only selected datapoints.
-
-    A Slice maintains a reference to its parent Doleus dataset and provides
-    access to a subset of its datapoints. It inherits all functionality from
-    the parent dataset while operating only on the selected subset.
-    """
-
-    def __init__(
-        self,
-        name: str,
-        root_dataset: Doleus,
-        indices: List[int],
-    ):
-        """Initialize a Slice instance.
-
-        Parameters
-        ----------
-        name : str
-            Name of the slice.
-        root_dataset : Doleus
-            The parent dataset this slice is created from.
-        indices : List[int]
-            List of indices from the parent dataset to include in this slice.
-        """
-        self.name = name
-        self.root_dataset = root_dataset
-        self.indices = indices
-        self.datapoints = [root_dataset.datapoints[i] for i in indices]
-
-    def __len__(self) -> int:
-        """Get the number of datapoints in the slice.
-
-        Returns
-        -------
-        int
-            Number of datapoints in the slice.
-        """
-        return len(self.indices)
-
-    def __getitem__(self, idx: int):
-        """Get a datapoint from the slice by index.
-
-        Parameters
-        ----------
-        idx : int
-            Index in the slice.
-
-        Returns
-        -------
-        Any
-            The datapoint from the parent dataset corresponding to the slice index.
-        """
-        # Map the local slice index to the corresponding index in the root dataset.
-        root_idx = self.indices[idx]
-        return self.root_dataset.dataset[root_idx]
-
-    def __getattr__(self, attr: str):
-        """Get an attribute from the parent dataset if not found in the slice.
-
-        Parameters
-        ----------
-        attr : str
-            Name of the attribute to get.
-
-        Returns
-        -------
-        Any
-            The attribute value from the parent dataset.
-        """
-        return getattr(self.root_dataset, attr)
-
-
-class DoleusClassification(Doleus):
-    """Doleus dataset wrapper specialized for classification tasks."""
-
-    def __init__(
-        self,
-        dataset: Dataset,
-        name: str,
-        task: str,
-        num_classes: int = None,
-        label_to_name: Dict[int, str] = None,
-        metadata: Dict[str, Any] = None,
-        datapoints_metadata: List[Dict[str, Any]] = None,
-    ):
-        """Initialize a DoleusClassification dataset.
-
-        Parameters
-        ----------
-        dataset : Dataset
-            The PyTorch dataset to wrap.
-        name : str
-            Name of the dataset.
-        task : str
-            Specific classification task description.
-        num_classes : int, optional
-            Number of classes in the dataset, by default None.
-        label_to_name : Dict[int, str], optional
-            Mapping from class IDs to class names, by default None.
-        metadata : Dict[str, Any], optional
-            Dataset-level metadata, by default None.
-        datapoints_metadata : List[Dict[str, Any]], optional
-            Per-datapoint metadata, by default None.
-        """
-        super().__init__(
-            dataset=dataset,
-            name=name,
-            task_type=TaskType.CLASSIFICATION.value,
-            task=task,
-            num_classes=num_classes,
-            label_to_name=label_to_name,
-            metadata=metadata,
-            datapoints_metadata=datapoints_metadata,
-        )
-
-
-class DoleusDetection(Doleus):
-    """Doleus dataset wrapper specialized for detection tasks."""
-
-    def __init__(
-        self,
-        dataset: Dataset,
-        name: str,
-        num_classes: int = None,
-        label_to_name: Dict[int, str] = None,
-        metadata: Dict[str, Any] = None,
-        datapoints_metadata: List[Dict[str, Any]] = None,
-    ):
-        """Initialize a DoleusDetection dataset.
-
-        Parameters
-        ----------
-        dataset : Dataset
-            The PyTorch dataset to wrap.
-        name : str
-            Name of the dataset.
-        task : str
-            Specific detection task description.
-        num_classes : int, optional
-            Number of classes in the dataset, by default None.
-        label_to_name : Dict[int, str], optional
-            Mapping from class IDs to class names, by default None.
-        metadata : Dict[str, Any], optional
-            Dataset-level metadata, by default None.
-        datapoints_metadata : List[Dict[str, Any]], optional
-            Per-datapoint metadata, by default None.
-        """
-        super().__init__(
-            dataset=dataset,
-            name=name,
-            task_type=TaskType.DETECTION.value,
-            num_classes=num_classes,
-            label_to_name=label_to_name,
-            metadata=metadata,
-            datapoints_metadata=datapoints_metadata,
-        )
-
-
-def get_original_indices(dataset: Union[Doleus, Slice]) -> List[int]:
+def get_original_indices(dataset: Union["Doleus", "Slice"]) -> List[int]:
     """Get the original dataset indices for a dataset or slice.
 
     Parameters
@@ -926,6 +778,9 @@ def get_original_indices(dataset: Union[Doleus, Slice]) -> List[int]:
     TypeError
         If the dataset is not a Doleus or Slice instance.
     """
+    # Import here to avoid circular import
+    from doleus.datasets.slice import Slice
+
     if isinstance(dataset, Slice):
         parent_indices = get_original_indices(dataset.root_dataset)
         return [parent_indices[i] for i in dataset.indices]

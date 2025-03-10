@@ -10,7 +10,7 @@ from torchvision.ops import box_convert
 
 from doleus.check import Check, CheckSuite
 # Import Moonwatcher components for evaluation
-from doleus.dataset.dataset import DoleusDetection
+from doleus.datasets import DoleusDetection
 
 # TODO: Check if I use the correct transform
 # TODO: Make the dataset downloadable

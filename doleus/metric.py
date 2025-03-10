@@ -6,7 +6,7 @@ import torch
 import torchmetrics
 
 from doleus.annotations import BoundingBoxes, Labels
-from doleus.dataset.dataset import Doleus, Slice
+from doleus.datasets import Doleus, Slice
 from doleus.utils.data import TaskType
 
 # -----------------------------------------------------------------------------

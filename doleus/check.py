@@ -3,7 +3,7 @@
 import json
 from typing import Any, Dict, List, Optional, Union
 
-from doleus.dataset.dataset import Doleus, Slice, get_original_indices
+from doleus.datasets import Doleus, Slice, get_original_indices
 from doleus.metric import calculate_metric
 from doleus.utils.data import OPERATOR_DICT
 from doleus.utils.helpers import get_current_timestamp
