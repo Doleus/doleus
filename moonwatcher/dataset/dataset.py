@@ -118,7 +118,7 @@ class Moonwatcher(Dataset):
         dataset: Dataset,
         name: str,
         task_type: str,
-        task: str,
+        task: Optional[str] = None,
         num_classes: int = None,
         label_to_name: Dict[int, str] = None,
         metadata: Dict[str, Any] = None,
@@ -337,6 +337,10 @@ class Moonwatcher(Dataset):
             if not isinstance(predictions, list):
                 raise TypeError(
                     "For detection, predictions must be a list of length N.")
+            print(f"predictions: {predictions}")
+            print(f"len(predictions): {len(predictions)}")
+            print(f"self.dataset: {self.dataset}")
+            print(f"len(self.dataset): {len(self.dataset)}")
             if len(predictions) != len(self.dataset):
                 raise ValueError(
                     "Mismatch between predictions list and dataset length.")
@@ -870,7 +874,6 @@ class MoonwatcherDetection(Moonwatcher):
         self,
         dataset: Dataset,
         name: str,
-        task: str,
         num_classes: int = None,
         label_to_name: Dict[int, str] = None,
         metadata: Dict[str, Any] = None,
@@ -902,7 +905,6 @@ class MoonwatcherDetection(Moonwatcher):
             dataset=dataset,
             name=name,
             task_type=TaskType.DETECTION.value,
-            task=task,
             num_classes=num_classes,
             label_to_name=label_to_name,
             metadata=metadata,
