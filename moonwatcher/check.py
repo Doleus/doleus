@@ -1,15 +1,12 @@
 """Check and CheckSuite classes for evaluating model performance metrics."""
 
 import json
-from pathlib import Path
-from typing import Optional, List, Union, Dict, Any
+from typing import Any, Dict, List, Optional, Union
 
-import torch
-
-from moonwatcher.utils.data import OPERATOR_DICT, TaskType
-from moonwatcher.dataset.dataset import Moonwatcher, Slice, get_original_indices
-from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
+from moonwatcher.dataset.dataset import (Moonwatcher, Slice,
+                                         get_original_indices)
 from moonwatcher.metric import calculate_metric
+from moonwatcher.utils.data import OPERATOR_DICT
 from moonwatcher.utils.helpers import get_current_timestamp
 
 
@@ -88,7 +85,9 @@ class ReportVisualizer:
         """
         # Decide success symbol (or blank if no thresholding)
         if check_report["success"] is not None:
-            success_symbol = self.pass_emoji if check_report["success"] else self.fail_emoji
+            success_symbol = (
+                self.pass_emoji if check_report["success"] else self.fail_emoji
+            )
         else:
             success_symbol = "   "
 
@@ -99,7 +98,7 @@ class ReportVisualizer:
         operator = check_report["operator"]
         value = check_report["value"]
         result_val = check_report["result"]
-        root_dataset_name = check_report["slice_name"] or check_report["root_dataset_name"]
+        root_dataset_id = check_report["slice_name"] or check_report["root_dataset_id"]
         metric_name = check_report["metric"]
 
         if operator is not None and value is not None:
@@ -120,7 +119,7 @@ class ReportVisualizer:
             result_str = f"{color}{result_val:.5f}{self.END}"
             comparison_str = f"{op_symbol} {value}"
 
-            appendix = f"({metric_name} on {root_dataset_name})"
+            appendix = f"({metric_name} on {root_dataset_id})"
             print(
                 f"{line_str.ljust(40)} {result_str} {comparison_str.ljust(10)} {appendix}"
             )
@@ -128,7 +127,8 @@ class ReportVisualizer:
             # No threshold test
             # Just print the metric result
             print(
-                f"{line_str.ljust(40)} {result_val:.5f}  ({metric_name} on {root_dataset_name})")
+                f"{line_str.ljust(40)} {result_val:.5f}  ({metric_name} on {root_dataset_id})"
+            )
 
 
 class Check:
@@ -162,7 +162,7 @@ class Check:
         dataset : Union[Moonwatcher, Slice]
             The dataset or slice on which to evaluate.
         model_id : str
-            The model ID associated with the predictions.
+            The name of the model associated with the predictions.
         metric : str
             Metric name (e.g. "Accuracy", "mAP", etc.).
         metric_parameters : Optional[Dict], optional
@@ -208,17 +208,19 @@ class Check:
             The check report dictionary containing results and metadata.
         """
         # Get root dataset and predictions
-        root_dataset = self.dataset.root_dataset if isinstance(self.dataset, Slice) else self.dataset
-        predictions = root_dataset.prediction_store.get_predictions(
-            dataset_name=root_dataset.name,
-            model_id=self.model_id
+        root_dataset = (
+            self.dataset.root_dataset
+            if isinstance(self.dataset, Slice)
+            else self.dataset
         )
-        
+        predictions = root_dataset.prediction_store.get_predictions(
+            dataset_id=root_dataset.name, model_id=self.model_id
+        )
+
         # Add predictions to dataset (temporary)
-        root_dataset.add_predictions(predictions)
-        
-        indices = get_original_indices(
-            dataset=self.dataset)
+        root_dataset._set_predictions(predictions)
+
+        indices = get_original_indices(dataset=self.dataset)
 
         # 1) Compute metric
         result_value = calculate_metric(
@@ -237,15 +239,15 @@ class Check:
 
         # 3) Build report dict
         if isinstance(self.dataset, Slice):
-            ds_name = self.dataset.root_dataset.name
+            ds_id = self.dataset.root_dataset.name
             slice_name = self.dataset.name
         else:
-            ds_name = self.dataset.name
+            ds_id = self.dataset.name
             slice_name = None
 
         report = {
             "check_name": self.name,
-            "root_dataset_name": ds_name,
+            "root_dataset_id": ds_id,
             "slice_name": slice_name,
             "metric": self.metric,
             "operator": self.operator,
@@ -319,7 +321,9 @@ class CheckSuite:
         self.metadata = metadata or {}
         self.show = show
 
-    def run_all(self, show: Optional[bool] = None, save_report: bool = False) -> Dict[str, Any]:
+    def run_all(
+        self, show: Optional[bool] = None, save_report: bool = False
+    ) -> Dict[str, Any]:
         """Run all checks in the suite.
 
         Parameters
@@ -346,7 +350,8 @@ class CheckSuite:
 
         # Determine overall success (if all checks have thresholds)
         all_have_thresholds = all(
-            report["success"] is not None for report in check_reports)
+            report["success"] is not None for report in check_reports
+        )
         overall_success = None
         if all_have_thresholds:
             overall_success = all(report["success"] for report in check_reports)
@@ -364,12 +369,16 @@ class CheckSuite:
             visualize_report(suite_report)
 
         if save_report:
-            with open(f"checksuite_{self.name}_report.json", "w", encoding="utf-8") as f:
+            with open(
+                f"checksuite_{self.name}_report.json", "w", encoding="utf-8"
+            ) as f:
                 json.dump(suite_report, f, indent=4)
 
         return suite_report
 
-    def __call__(self, show: Optional[bool] = None, save_report: bool = False) -> Dict[str, Any]:
+    def __call__(
+        self, show: Optional[bool] = None, save_report: bool = False
+    ) -> Dict[str, Any]:
         """Convenience call to run all checks in the suite.
 
         Parameters

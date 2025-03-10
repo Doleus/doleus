@@ -1,13 +1,13 @@
 """Metric computation utilities for classification and detection tasks."""
 
-from typing import Union, Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 import torchmetrics
 
-from moonwatcher.utils.data import TaskType
+from moonwatcher.annotations import BoundingBoxes, Labels
 from moonwatcher.dataset.dataset import Moonwatcher, Slice
-from moonwatcher.annotations import Labels, BoundingBoxes
+from moonwatcher.utils.data import TaskType
 
 # -----------------------------------------------------------------------------
 # Torchmetrics Registry
@@ -72,7 +72,8 @@ def _parse_metric_class(metric_class: Any, dataset: Moonwatcher) -> Optional[int
 
     if dataset.label_to_name is None:
         raise ValueError(
-            "label_to_name mapping not provided; cannot parse metric_class.")
+            "label_to_name mapping not provided; cannot parse metric_class."
+        )
 
     if isinstance(metric_class, int):
         return metric_class
@@ -80,7 +81,8 @@ def _parse_metric_class(metric_class: Any, dataset: Moonwatcher) -> Optional[int
     if isinstance(metric_class, str):
         if metric_class not in dataset.label_to_name.values():
             raise ValueError(
-                f"Class name '{metric_class}' not found in dataset.label_to_name.")
+                f"Class name '{metric_class}' not found in dataset.label_to_name."
+            )
         # Invert the mapping: {id: name} becomes {name: id}
         for k, v in dataset.label_to_name.items():
             if v == metric_class:
@@ -102,6 +104,7 @@ def _convert_detection_dicts(annotations_list: List[Dict[str, Any]]) -> None:
         ann["labels"] = torch.tensor(ann["labels"], dtype=torch.int64)
         if "scores" in ann:
             ann["scores"] = torch.tensor(ann["scores"], dtype=torch.float32)
+
 
 # -----------------------------------------------------------------------------
 # Classification Metric
@@ -147,8 +150,7 @@ def _calculate_classification_metric(
     """
     try:
         # Build ground truth tensor: squeeze each annotation to get a scalar.
-        gt_tensor = torch.stack([ann.labels.squeeze()
-                                for ann in groundtruths_loaded])
+        gt_tensor = torch.stack([ann.labels.squeeze() for ann in groundtruths_loaded])
 
         # Build prediction tensor: use scores if available, otherwise use labels.
         pred_list = [
@@ -179,9 +181,16 @@ def _calculate_classification_metric(
         if metric_class_id is not None:
             metric_value = metric_value[metric_class_id]
 
-        return float(metric_value.item()) if hasattr(metric_value, "item") else float(metric_value)
+        return (
+            float(metric_value.item())
+            if hasattr(metric_value, "item")
+            else float(metric_value)
+        )
     except Exception as e:
-        raise RuntimeError(f"Error in classification metric computation: {str(e)}") from e
+        raise RuntimeError(
+            f"Error in classification metric computation: {str(e)}"
+        ) from e
+
 
 # -----------------------------------------------------------------------------
 # Detection Metric
@@ -247,8 +256,11 @@ def _calculate_detection_metric(
                 classes = metric_value_dict.get("classes", None)
                 if classes is not None:
                     index = torch.where(classes == metric_class_id)[0]
-                    result = metric_value_dict["map_per_class"][index].item(
-                    ) if index.numel() > 0 else 0.0
+                    result = (
+                        metric_value_dict["map_per_class"][index].item()
+                        if index.numel() > 0
+                        else 0.0
+                    )
                 else:
                     result = 0.0
             else:
@@ -260,6 +272,7 @@ def _calculate_detection_metric(
         return float(result.item()) if hasattr(result, "item") else float(result)
     except Exception as e:
         raise RuntimeError(f"Error in detection metric computation: {str(e)}") from e
+
 
 # -----------------------------------------------------------------------------
 # High-Level Metric Calculation
@@ -300,10 +313,8 @@ def calculate_metric(
     """
     metric_parameters = metric_parameters or {}
 
-    groundtruths_loaded = [
-        dataset.groundtruths.get(i) for i in indices]
-    predictions_loaded = [
-        dataset.predictions.get(i) for i in indices]
+    groundtruths_loaded = [dataset.groundtruths.get(i) for i in indices]
+    predictions_loaded = [dataset.predictions.get(i) for i in indices]
 
     if dataset.task_type == TaskType.CLASSIFICATION.value:
         return _calculate_classification_metric(

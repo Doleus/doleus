@@ -1,4 +1,4 @@
-from moonwatcher.utils.data import OPERATOR_DICT, TaskType, DataType
+from moonwatcher.utils.data import OPERATOR_DICT, DataType, TaskType
 
 
 def test_operator_dict():

@@ -16,15 +16,9 @@ multi-label classifications while maintaining the requirement for 1D integer ten
 import pytest
 import torch
 
-from moonwatcher.annotations import (
-    BoundingBoxes,
-    PredictedBoundingBoxes,
-    Labels,
-    Annotations,
-    PredictedLabels,
-    Predictions,
-    GroundTruths
-)
+from moonwatcher.annotations import (Annotations, BoundingBoxes, GroundTruths,
+                                     Labels, PredictedBoundingBoxes,
+                                     PredictedLabels, Predictions)
 
 
 def tensor(data, dtype=torch.float32):
@@ -55,29 +49,32 @@ def test_bounding_boxes_initialization(datapoint_id, boxes, labels, valid):
 def test_bounding_boxes_validation():
     # Test invalid box dimensions
     with pytest.raises(ValueError):
-        BoundingBoxes(1, tensor([1, 2, 3]), tensor(
-            [1], dtype=torch.int32))  # Not Nx4 shape
+        BoundingBoxes(
+            1, tensor([1, 2, 3]), tensor([1], dtype=torch.int32)
+        )  # Not Nx4 shape
 
     # Test invalid width
     with pytest.raises(ValueError):
-        BoundingBoxes(1, tensor([[3, 0, 1, 1]]), tensor(
-            [1], dtype=torch.int32))  # x2 < x1
+        BoundingBoxes(
+            1, tensor([[3, 0, 1, 1]]), tensor([1], dtype=torch.int32)
+        )  # x2 < x1
 
     # Test invalid height
     with pytest.raises(ValueError):
-        BoundingBoxes(1, tensor([[0, 3, 1, 1]]), tensor(
-            [1], dtype=torch.int32))  # y2 < y1
+        BoundingBoxes(
+            1, tensor([[0, 3, 1, 1]]), tensor([1], dtype=torch.int32)
+        )  # y2 < y1
 
     # Test mismatched number of boxes and labels
     with pytest.raises(ValueError):
-        BoundingBoxes(1, tensor([[1, 2, 3, 4]]), tensor(
-            [1, 2], dtype=torch.int32))  # More labels than boxes
+        BoundingBoxes(
+            1, tensor([[1, 2, 3, 4]]), tensor([1, 2], dtype=torch.int32)
+        )  # More labels than boxes
 
     # Test coordinate range
     with pytest.raises(ValueError):
         # Negative coordinates
-        BoundingBoxes(1, tensor([[-1, 0, 1, 1]]),
-                      tensor([1], dtype=torch.int32))
+        BoundingBoxes(1, tensor([[-1, 0, 1, 1]]), tensor([1], dtype=torch.int32))
 
     # Test to_dict method
     boxes = tensor([[1, 2, 3, 4]])
@@ -92,10 +89,20 @@ def test_bounding_boxes_validation():
 @pytest.mark.parametrize(
     "datapoint_id, boxes, labels, scores, valid",
     [
-        (1, tensor([[1, 2, 3, 4]]), tensor(
-            [1], dtype=torch.int32), tensor([0.99]), True),
-        (2, tensor([[1, 2, 3, 4]]), tensor(
-            [1], dtype=torch.int32), 0.99, False),  # Invalid scores
+        (
+            1,
+            tensor([[1, 2, 3, 4]]),
+            tensor([1], dtype=torch.int32),
+            tensor([0.99]),
+            True,
+        ),
+        (
+            2,
+            tensor([[1, 2, 3, 4]]),
+            tensor([1], dtype=torch.int32),
+            0.99,
+            False,
+        ),  # Invalid scores
     ],
 )
 def test_predicted_bounding_boxes_initialization(
@@ -118,7 +125,7 @@ def test_predicted_bounding_boxes_initialization(
         (tensor([[0.9]]), ValueError),  # Wrong shape (2D)
         (tensor([1.2]), ValueError),  # Score > 1.0
         (tensor([-0.1]), ValueError),  # Score < 0.0
-    ]
+    ],
 )
 def test_predicted_bounding_boxes_score_validation(scores, expected_exception):
     boxes = tensor([[1, 2, 3, 4]])
@@ -135,8 +142,7 @@ def test_predicted_bounding_boxes_score_validation(scores, expected_exception):
         (2, tensor([1, 2, 3], dtype=torch.int32), None),  # Multiple labels
         (3, tensor([1.3]), TypeError),  # Non-integer labels
         (4, "not a tensor", TypeError),  # Non-tensor labels
-        (5, tensor([[1, 2]], dtype=torch.int32),
-         ValueError),  # 2D tensor (invalid)
+        (5, tensor([[1, 2]], dtype=torch.int32), ValueError),  # 2D tensor (invalid)
         # Scalar tensor. Please note that we expect the labels to be a 1-dimensional tensor, i.e. (x,). If you pass a scalar to a dataset, it will be converted to a 1-dimensional tensor.
         (6, tensor(5, dtype=torch.int32), ValueError),
     ],
@@ -161,8 +167,7 @@ def test_labels_dtypes(dtype):
 @pytest.mark.parametrize(
     "datapoint_id, labels, scores, expected_exception",
     [
-        (1, tensor([1], dtype=torch.int32),
-         tensor([0.9]), None),  # Correct case
+        (1, tensor([1], dtype=torch.int32), tensor([0.9]), None),  # Correct case
         (
             2,
             tensor([1], dtype=torch.int32),
@@ -200,23 +205,20 @@ def test_predicted_labels_initialization(
 
 # Test for Annotations Class
 def test_annotations():
-    bbox = BoundingBoxes(
-        1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32))
+    bbox = BoundingBoxes(1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32))
     annotations = Annotations([bbox])
     retrieved = annotations.get(1)
     assert retrieved == bbox
     assert len(annotations) == 1
 
+
 # Test for annotation methods
 
 
 def test_annotations_methods():
-    bbox1 = BoundingBoxes(
-        1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32))
-    bbox2 = BoundingBoxes(
-        2, tensor([[1, 2, 3, 4]]), tensor([2], dtype=torch.int32))
-    bbox3 = BoundingBoxes(
-        1, tensor([[1, 2, 3, 4]]), tensor([3], dtype=torch.int32))
+    bbox1 = BoundingBoxes(1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32))
+    bbox2 = BoundingBoxes(2, tensor([[1, 2, 3, 4]]), tensor([2], dtype=torch.int32))
+    bbox3 = BoundingBoxes(1, tensor([[1, 2, 3, 4]]), tensor([3], dtype=torch.int32))
 
     annotations = Annotations([bbox1])
 
@@ -262,8 +264,7 @@ def test_predictions_validation():
         name = "test_dataset"
 
     dataset = MockDataset()
-    bbox = BoundingBoxes(
-        1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32))
+    bbox = BoundingBoxes(1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32))
     label = Labels(1, tensor([1], dtype=torch.int32))
 
     # Test that Predictions only accepts PredictedBoundingBoxes/PredictedLabels
@@ -280,9 +281,9 @@ def test_groundtruths_validation():
 
     dataset = MockDataset()
     pred_bbox = PredictedBoundingBoxes(
-        1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32), tensor([0.9]))
-    pred_label = PredictedLabels(
-        1, tensor([1], dtype=torch.int32), tensor([0.9]))
+        1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32), tensor([0.9])
+    )
+    pred_label = PredictedLabels(1, tensor([1], dtype=torch.int32), tensor([0.9]))
     # Test that GroundTruths only accepts BoundingBoxes/Labels
     with pytest.raises(TypeError):
         # PredictedBoundingBoxes not allowed

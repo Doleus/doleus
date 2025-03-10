@@ -1,8 +1,8 @@
-import torch
 import pytest
+import torch
 
-from moonwatcher.metric import calculate_metric_internal
 from moonwatcher.dataset.dataset import MoonwatcherDataset
+from moonwatcher.metric import calculate_metric_internal
 
 
 class MockModel:
@@ -56,8 +56,9 @@ def patch_functions(monkeypatch):
 
 
 def load_data_for_testing():
-    model = MockModel(name="mock_model",
-                      task_type=TaskType.CLASSIFICATION.value, device="cpu")
+    model = MockModel(
+        name="mock_model", task_type=TaskType.CLASSIFICATION.value, device="cpu"
+    )
     dataset = MockDataset(
         name="mock_dataset",
         labels=[0, 1, 0, 1],
@@ -104,7 +105,9 @@ def test_calculate_precision():
         predictions_loaded,
         "Precision",
     )
-    assert result == 0.66667, f"Expected Precision to be 0.66667 but got {
+    assert (
+        result == 0.66667
+    ), f"Expected Precision to be 0.66667 but got {
         result}"
 
 

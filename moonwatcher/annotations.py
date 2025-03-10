@@ -1,8 +1,7 @@
 """Annotation classes for storing and managing model predictions and ground truths."""
 
-from typing import List, Union, Optional
+from typing import List, Optional
 
-import torch
 from torch import Tensor
 
 
@@ -95,8 +94,10 @@ class BoundingBoxes(Annotation):
             String representation including number of boxes and scores presence.
         """
         n_boxes = self.boxes_xyxy.shape[0]
-        return (f"{self.__class__.__name__}(datapoint_number={self.datapoint_number}, "
-                f"num_boxes={n_boxes}, scores_present={self.scores is not None})")
+        return (
+            f"{self.__class__.__name__}(datapoint_number={self.datapoint_number}, "
+            f"num_boxes={n_boxes}, scores_present={self.scores is not None})"
+        )
 
 
 class Labels(Annotation):
@@ -107,10 +108,7 @@ class Labels(Annotation):
     """
 
     def __init__(
-        self,
-        datapoint_number: int,
-        labels: Tensor,
-        scores: Optional[Tensor] = None
+        self, datapoint_number: int, labels: Tensor, scores: Optional[Tensor] = None
     ):
         """Initialize a Labels instance.
 
@@ -155,8 +153,10 @@ class Labels(Annotation):
         """
         labels_str = self.labels.tolist() if self.labels.numel() < 6 else "..."
         scores_str = "scores_present" if self.scores is not None else "no_scores"
-        return (f"{self.__class__.__name__}(datapoint_number={self.datapoint_number}, "
-                f"labels={labels_str}, {scores_str})")
+        return (
+            f"{self.__class__.__name__}(datapoint_number={self.datapoint_number}, "
+            f"labels={labels_str}, {scores_str})"
+        )
 
 
 class Annotations:
@@ -198,16 +198,15 @@ class Annotations:
         """
         if not isinstance(annotation, Annotation):
             raise TypeError(
-                "annotation must be an instance of the base Annotation class.")
+                "annotation must be an instance of the base Annotation class."
+            )
 
         dp_num = annotation.datapoint_number
         if dp_num in self.datapoint_number_to_annotation_index:
-            raise KeyError(
-                f"Annotation for datapoint {dp_num} already exists.")
+            raise KeyError(f"Annotation for datapoint {dp_num} already exists.")
 
         self.annotations.append(annotation)
-        self.datapoint_number_to_annotation_index[dp_num] = len(
-            self.annotations) - 1
+        self.datapoint_number_to_annotation_index[dp_num] = len(self.annotations) - 1
 
     def get(self, datapoint_number: int) -> Annotation:
         """Retrieve the annotation object for a given datapoint.
@@ -229,8 +228,7 @@ class Annotations:
         """
         index = self.datapoint_number_to_annotation_index.get(datapoint_number)
         if index is None:
-            raise KeyError(
-                f"No annotation found for datapoint {datapoint_number}.")
+            raise KeyError(f"No annotation found for datapoint {datapoint_number}.")
         return self.annotations[index]
 
     def get_datapoint_ids(self) -> List[int]:

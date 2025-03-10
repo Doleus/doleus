@@ -1,8 +1,8 @@
-import torch
 import pytest
+import torch
 
-from moonwatcher.metric import calculate_metric
 from moonwatcher.dataset.dataset import MoonwatcherDataset
+from moonwatcher.metric import calculate_metric
 
 
 class MockModel:
@@ -72,8 +72,9 @@ def patch_functions(monkeypatch):
 
 
 def load_data_for_testing():
-    model = MockModel(name="mock_model",
-                      task_type=TaskType.DETECTION.value, device="cpu")
+    model = MockModel(
+        name="mock_model", task_type=TaskType.DETECTION.value, device="cpu"
+    )
     dataset = MockDataset(name="mock_dataset")
     relevant_ids = list(range(4))
     groundtruths_loaded = mock_load_groundtruths(dataset.name)
@@ -97,7 +98,9 @@ def test_calculate_iou():
         predictions_loaded,
         "IntersectionOverUnion",
     )
-    assert result > 0.75, f"Expected IoU to be greater than 0.75 but got {
+    assert (
+        result > 0.75
+    ), f"Expected IoU to be greater than 0.75 but got {
         result}"
 
 
@@ -117,7 +120,9 @@ def test_calculate_map():
         predictions_loaded,
         "mAP",
     )
-    assert result > 0.7, f"Expected mAP to be greater than 0.7 but got {
+    assert (
+        result > 0.7
+    ), f"Expected mAP to be greater than 0.7 but got {
         result}"
 
 
