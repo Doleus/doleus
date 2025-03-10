@@ -12,6 +12,23 @@ from moonwatcher.dataset.metadata import ATTRIBUTE_FUNCTIONS
 from moonwatcher.metric import calculate_metric
 from moonwatcher.utils.helpers import get_current_timestamp
 
+# At the top of the file with other imports
+REPORT_FORMATTING = {
+    "PASS_EMOJI": "✅",  # \u2705
+    "FAIL_EMOJI": "❌",  # \u274C
+    "BOLD": "\033[1m",
+    "END": "\033[0m",
+    "UNDERLINE": "\033[4m",
+    "RED": "\033[91m",
+    "GREEN": "\033[92m"
+}
+
+OPERATOR_SYMBOLS = {
+    ">=": "≥",
+    "<=": "≤",
+    "==": "=",
+    "!=": "≠"
+}
 
 def visualize_report(report: Dict[str, Any]):
     """Visualize a check or checksuite report.
@@ -30,13 +47,13 @@ class ReportVisualizer:
 
     def __init__(self):
         """Initialize the ReportVisualizer with formatting constants."""
-        self.pass_emoji = "\u2705"
-        self.fail_emoji = "\u274C"
-        self.BOLD = "\033[1m"
-        self.END = "\033[0m"
-        self.UNDERLINE = "\033[4m"
-        self.RED = "\033[91m"
-        self.GREEN = "\033[92m"
+        self.pass_emoji = REPORT_FORMATTING["PASS_EMOJI"]
+        self.fail_emoji = REPORT_FORMATTING["FAIL_EMOJI"]
+        self.BOLD = REPORT_FORMATTING["BOLD"]
+        self.END = REPORT_FORMATTING["END"]
+        self.UNDERLINE = REPORT_FORMATTING["UNDERLINE"]
+        self.RED = REPORT_FORMATTING["RED"]
+        self.GREEN = REPORT_FORMATTING["GREEN"]
 
     def visualize(self, report: Dict[str, Any], spacing: str = ""):
         """Recursively print check or checksuite reports in a hierarchical manner.
@@ -49,10 +66,8 @@ class ReportVisualizer:
             Indentation spacing for nested reports, by default "".
         """
         if "checks" in report:
-            # This is a CheckSuite
             self._print_checksuite(report, spacing)
         else:
-            # This is a single Check
             self._print_check(report, spacing)
 
     def _print_checksuite(self, suite_report: Dict[str, Any], spacing: str):
@@ -86,7 +101,6 @@ class ReportVisualizer:
         spacing : str
             Indentation spacing for the report.
         """
-        # Decide success symbol (or blank if no thresholding)
         if check_report["success"] is not None:
             success_symbol = self.pass_emoji if check_report["success"] else self.fail_emoji
         else:
@@ -103,20 +117,9 @@ class ReportVisualizer:
         metric_name = check_report["metric"]
 
         if operator is not None and value is not None:
-            # Pretty-print operator
-            op_symbol = operator
-            if op_symbol == ">=":
-                op_symbol = "≥"
-            elif op_symbol == "<=":
-                op_symbol = "≤"
-            elif op_symbol == "==":
-                op_symbol = "="
-            elif op_symbol == "!=":
-                op_symbol = "≠"
-
-            # Format success/fail color
+            # Use lookup table instead of multiple if/elif
+            op_symbol = OPERATOR_SYMBOLS.get(operator, operator)
             color = self.GREEN if check_report["success"] else self.RED
-            # 5 decimal places
             result_str = f"{color}{result_val:.5f}{self.END}"
             comparison_str = f"{op_symbol} {value}"
 
@@ -125,8 +128,6 @@ class ReportVisualizer:
                 f"{line_str.ljust(40)} {result_str} {comparison_str.ljust(10)} {appendix}"
             )
         else:
-            # No threshold test
-            # Just print the metric result
             print(
                 f"{line_str.ljust(40)} {result_val:.5f}  ({metric_name} on {root_dataset_name})")
 
@@ -148,8 +149,6 @@ class Check:
         metric: str,
         metric_parameters: Optional[Dict] = None,
         metric_class: Optional[Union[str, int]] = None,
-        description: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
         operator: Optional[str] = None,
         value: Optional[float] = None,
     ):
@@ -169,10 +168,6 @@ class Check:
             Optional parameters for torchmetrics, by default None.
         metric_class : Optional[Union[str, int]], optional
             Optional class name or ID for per-class metrics, by default None.
-        description : Optional[str], optional
-            Optional description of the check, by default None.
-        metadata : Optional[Dict[str, Any]], optional
-            Optional dict of metadata/tags, by default None.
         operator : Optional[str], optional
             For threshold checks (">", ">=", "<", "<=", "==", "!="), by default None.
         value : Optional[float], optional
@@ -184,8 +179,6 @@ class Check:
         self.metric = metric
         self.metric_parameters = metric_parameters or {}
         self.metric_class = metric_class
-        self.description = description
-        self.metadata = metadata or {}
 
         # Threshold comparison
         self.operator = operator
@@ -207,14 +200,12 @@ class Check:
         Dict[str, Any]
             The check report dictionary containing results and metadata.
         """
-        # Get root dataset and predictions
         root_dataset = self.dataset.root_dataset if isinstance(self.dataset, Slice) else self.dataset
         predictions = root_dataset.prediction_store.get_predictions(
             dataset_name=root_dataset.name,
             model_id=self.model_id
         )
         
-        # Add predictions to dataset (temporary)
         root_dataset.add_predictions(predictions)
         
         indices = get_original_indices(
@@ -294,8 +285,6 @@ class CheckSuite:
         self,
         name: str,
         checks: List[Check],
-        description: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
         show: bool = False,
     ):
         """Initialize a CheckSuite instance.
@@ -306,17 +295,11 @@ class CheckSuite:
             Name of the checksuite.
         checks : List[Check]
             List of Check objects to be run.
-        description : Optional[str], optional
-            Optional description of the checksuite, by default None.
-        metadata : Optional[Dict[str, Any]], optional
-            Optional dict of metadata/tags, by default None.
         show : bool, optional
             If True, prints each check's result to console, by default False.
         """
         self.name = name
         self.checks = checks
-        self.description = description
-        self.metadata = metadata or {}
         self.show = show
 
     def run_all(self, show: Optional[bool] = None, save_report: bool = False) -> Dict[str, Any]:
@@ -338,20 +321,17 @@ class CheckSuite:
         # Use instance-level show if not overridden
         show = self.show if show is None else show
 
-        # Run all checks
         check_reports = []
         for check in self.checks:
             report = check.run(show=False)  # Don't show individual reports yet
             check_reports.append(report)
 
-        # Determine overall success (if all checks have thresholds)
         all_have_thresholds = all(
             report["success"] is not None for report in check_reports)
         overall_success = None
         if all_have_thresholds:
             overall_success = all(report["success"] for report in check_reports)
 
-        # Build suite report
         suite_report = {
             "checksuite_name": self.name,
             "success": overall_success,
@@ -359,7 +339,6 @@ class CheckSuite:
             "timestamp": get_current_timestamp(),
         }
 
-        # Optional output
         if show:
             visualize_report(suite_report)
 
@@ -386,24 +365,3 @@ class CheckSuite:
             The checksuite report dictionary containing all check results.
         """
         return self.run_all(show=show, save_report=save_report)
-
-
-# -----------------------------------------------------------------------------
-# Optional Utility: "automated_checking" for demonstration or config-driven runs
-# -----------------------------------------------------------------------------
-
-# def load_config(task_type: str) -> Dict[str, Any]:
-#     """Load configuration based on task type"""
-
-# def create_slices(dataset: Moonwatcher, conditions: List[Dict]) -> List[Slice]:
-#     """Create slices based on conditions"""
-
-# def create_checks(dataset: Union[Moonwatcher, Slice], check_configs: List[Dict]) -> List[Check]:
-#     """Create checks from configurations"""
-
-# def automated_checking(mw_dataset: Moonwatcher, **kwargs):
-#     """Main function orchestrating the automated checking process"""
-#     config = load_config(mw_dataset.task_type) if kwargs.get('demo') else kwargs
-#     slices = create_slices(mw_dataset, config.get('slicing_conditions', []))
-#     checks = create_checks(mw_dataset, config.get('checks', []))
-#     return run_checks(mw_dataset, slices, checks)

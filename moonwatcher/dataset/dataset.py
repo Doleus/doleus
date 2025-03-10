@@ -66,7 +66,7 @@ def _get_raw_image(root_dataset: Dataset, index: int) -> Union[Image.Image, np.n
 def _pil_or_numpy_to_tensor(
     image: Union[Image.Image, np.ndarray, torch.Tensor]
 ) -> torch.Tensor:
-    """Convert various image formats to a standardized torch.Tensor format.
+    """Convert numpy and PIL image formats to a standardized torch.Tensor format.
 
     Parameters
     ----------
@@ -84,19 +84,17 @@ def _pil_or_numpy_to_tensor(
         If the input image format is not supported.
     """
     if isinstance(image, Image.Image):
-        return transforms.ToTensor()(image)  # shape [C,H,W], float in [0,1]
+        return transforms.ToTensor()(image)
 
     elif isinstance(image, np.ndarray):
         if image.dtype != np.float32:
             image = image.astype(np.float32) / 255.0
-        # shape HWC -> CHW
         return torch.from_numpy(image.transpose((2, 0, 1)))
 
     elif isinstance(image, torch.Tensor):
-        # If shape is (H, W, C), permute
         if image.dim() == 3 and image.shape[-1] == 3:
             return image.permute(2, 0, 1)
-        return image  # assume already [C,H,W]
+        return image
 
     else:
         raise TypeError(f"Unsupported image type {type(image)}")
@@ -122,7 +120,6 @@ class Moonwatcher(Dataset):
         num_classes: int = None,
         label_to_name: Dict[int, str] = None,
         metadata: Dict[str, Any] = None,
-        description: str = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
     ):
         """Initialize a Moonwatcher dataset wrapper.
@@ -143,8 +140,6 @@ class Moonwatcher(Dataset):
             Mapping from class IDs to class names, by default None.
         metadata : Dict[str, Any], optional
             Dataset-level metadata, by default None.
-        description : str, optional
-            Description of the dataset, by default None.
         datapoints_metadata : List[Dict[str, Any]], optional
             Per-datapoint metadata, by default None.
         """
@@ -154,7 +149,6 @@ class Moonwatcher(Dataset):
         self.task_type = task_type
         self.task = task
         self.num_classes = num_classes
-
         self.label_to_name = label_to_name
         self.name_to_label = {}
         if label_to_name is not None:
@@ -163,7 +157,6 @@ class Moonwatcher(Dataset):
         # Dataset-level metadata
         self.metadata = metadata if metadata is not None else {}
         self.metadata["_timestamp"] = get_current_timestamp()
-        self.description = description
 
         # Initialize datapoints with metadata
         self.datapoints = []
@@ -173,20 +166,22 @@ class Moonwatcher(Dataset):
                 md = datapoints_metadata[i]
             self.datapoints.append(Datapoint(id=i, metadata=md))
 
-        # Initialize predictions and groundtruths
         self.groundtruths = GroundTruths(dataset=self)
         self.predictions = Predictions(dataset=self)
         self.add_groundtruths()
         self.prediction_store = PredictionStore()
 
-    # @classmethod
-    # def create(cls, task_type: str, **kwargs):
-    #     """Factory method for creating task-specific datasets"""
-    #     if task_type == TaskType.CLASSIFICATION.value:
-    #         return cls(task_type=TaskType.CLASSIFICATION.value, **kwargs)
-    #     elif task_type == TaskType.DETECTION.value:
-    #         return cls(task_type=TaskType.DETECTION.value, **kwargs)
-    #     raise ValueError(f"Unsupported task_type: {task_type}")
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, item):
+        return self.dataset[item]
+
+    def __getattr__(self, attr):
+        """
+        Proxy any attribute lookup to the underlying dataset if not found here.
+        """
+        return getattr(self.dataset, attr)
 
     # -------------------------------------------------------------------------
     #                           GROUND TRUTHS
@@ -206,7 +201,7 @@ class Moonwatcher(Dataset):
             The corresponding index in the root dataset.
         """
         if isinstance(self.dataset, Subset):
-            return self.dataset.indices[local_idx]  # Root index
+            return self.dataset.indices[local_idx]
         else:
             return local_idx
 
@@ -214,7 +209,7 @@ class Moonwatcher(Dataset):
         """Add ground truth annotations from the underlying dataset.
 
         This method loops over every item in the underlying dataset and converts
-        the outputs into annotation objects (Labels or BoundingBoxes). For
+        the outputs into custom annotation objects (Labels or BoundingBoxes). For
         classification tasks, expects (image, label) tuples. For detection tasks,
         expects (image, bounding_boxes, labels) tuples.
 
@@ -224,7 +219,6 @@ class Moonwatcher(Dataset):
             If the dataset returns unexpected data format or has unsupported
             task type.
         """
-        # Clear any existing ground truths (if you want to allow overwriting)
         self.groundtruths = GroundTruths(dataset=self)
 
         for idx in tqdm(range(len(self.dataset)), desc=f"Building GROUND TRUTHS for {self.name}"):
@@ -248,7 +242,7 @@ class Moonwatcher(Dataset):
 
             elif self.task_type == TaskType.DETECTION.value:
                 # Expect (image, bounding_boxes, labels)
-                if len(data) < 3:
+                if len(data) != 3:
                     raise ValueError(
                         "Expected (image, bounding_boxes, labels) for detection.")
                 _, bounding_boxes, labels = data
@@ -289,7 +283,6 @@ class Moonwatcher(Dataset):
         ValueError
             If predictions size doesn't match dataset size or has invalid shape.
         """
-        # Clear existing predictions
         self.predictions = Predictions(dataset=self)
 
         # Classification case: predictions is typically [N, num_classes]
@@ -337,10 +330,6 @@ class Moonwatcher(Dataset):
             if not isinstance(predictions, list):
                 raise TypeError(
                     "For detection, predictions must be a list of length N.")
-            print(f"predictions: {predictions}")
-            print(f"len(predictions): {len(predictions)}")
-            print(f"self.dataset: {self.dataset}")
-            print(f"len(self.dataset): {len(self.dataset)}")
             if len(predictions) != len(self.dataset):
                 raise ValueError(
                     "Mismatch between predictions list and dataset length.")
@@ -392,22 +381,9 @@ class Moonwatcher(Dataset):
             model_metadata=model_metadata
         )
         
-        # Also update the dataset's direct predictions
         self.add_predictions(predictions)
         
         return model_id
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, item):
-        return self.dataset[item]
-
-    def __getattr__(self, attr):
-        """
-        Proxy any attribute lookup to the underlying dataset if not found here.
-        """
-        return getattr(self.dataset, attr)
 
     # -------------------------------------------------------------------------
     #                            METADATA METHODS
@@ -434,7 +410,7 @@ class Moonwatcher(Dataset):
         return raw_image
 
     def add_metadata(self, metadata_key: str, value_or_func: Union[Any, Callable[[np.ndarray], Any]]):
-        """Add metadata to all datapoints in the dataset.
+        """Applies a custom function to an image to generate metadata and stores the computed metadata values for each datapoint.
 
         Parameters
         ----------
@@ -618,7 +594,7 @@ class Moonwatcher(Dataset):
         ValueError
             If no datapoints match the target value.
         """
-        # Check if metadata key exists in at least one datapoint
+        
         if not any(metadata_key in dp.metadata for dp in self.datapoints):
             raise KeyError(f"Metadata key '{metadata_key}' not found in any datapoint")
 
@@ -687,7 +663,6 @@ class Moonwatcher(Dataset):
             If neither class_names nor class_ids are provided, or if class names
             are invalid.
         """
-        # Validate at least one argument provided
         if not class_names and not class_ids:
             raise ValueError("Must provide either class_names or class_ids")
 
@@ -755,7 +730,6 @@ class Slice(Moonwatcher):
         name: str,
         root_dataset: Moonwatcher,
         indices: List[int],
-        description: str = None,
     ):
         """Initialize a Slice instance.
 
@@ -767,13 +741,10 @@ class Slice(Moonwatcher):
             The parent dataset this slice is created from.
         indices : List[int]
             List of indices from the parent dataset to include in this slice.
-        description : str, optional
-            Description of the slice, by default None.
         """
         self.name = name
         self.root_dataset = root_dataset
         self.indices = indices
-        self.description = description
         self.datapoints = [root_dataset.datapoints[i] for i in indices]
 
     def __len__(self) -> int:
@@ -830,7 +801,6 @@ class MoonwatcherClassification(Moonwatcher):
         num_classes: int = None,
         label_to_name: Dict[int, str] = None,
         metadata: Dict[str, Any] = None,
-        description: str = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
     ):
         """Initialize a MoonwatcherClassification dataset.
@@ -849,8 +819,6 @@ class MoonwatcherClassification(Moonwatcher):
             Mapping from class IDs to class names, by default None.
         metadata : Dict[str, Any], optional
             Dataset-level metadata, by default None.
-        description : str, optional
-            Description of the dataset, by default None.
         datapoints_metadata : List[Dict[str, Any]], optional
             Per-datapoint metadata, by default None.
         """
@@ -862,7 +830,6 @@ class MoonwatcherClassification(Moonwatcher):
             num_classes=num_classes,
             label_to_name=label_to_name,
             metadata=metadata,
-            description=description,
             datapoints_metadata=datapoints_metadata,
         )
 
@@ -877,7 +844,6 @@ class MoonwatcherDetection(Moonwatcher):
         num_classes: int = None,
         label_to_name: Dict[int, str] = None,
         metadata: Dict[str, Any] = None,
-        description: str = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
     ):
         """Initialize a MoonwatcherDetection dataset.
@@ -896,8 +862,6 @@ class MoonwatcherDetection(Moonwatcher):
             Mapping from class IDs to class names, by default None.
         metadata : Dict[str, Any], optional
             Dataset-level metadata, by default None.
-        description : str, optional
-            Description of the dataset, by default None.
         datapoints_metadata : List[Dict[str, Any]], optional
             Per-datapoint metadata, by default None.
         """
@@ -908,7 +872,6 @@ class MoonwatcherDetection(Moonwatcher):
             num_classes=num_classes,
             label_to_name=label_to_name,
             metadata=metadata,
-            description=description,
             datapoints_metadata=datapoints_metadata,
         )
 

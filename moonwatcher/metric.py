@@ -45,12 +45,12 @@ _METRIC_KEYS = {
 # -----------------------------------------------------------------------------
 
 
-def _parse_metric_class(metric_class: Any, dataset: Moonwatcher) -> Optional[int]:
+def _parse_metric_class(metric_class: Optional[Union[int, str]], dataset: Moonwatcher) -> Optional[int]:
     """Parse and validate the metric class parameter.
 
     Parameters
     ----------
-    metric_class : Any
+    metric_class : Optional[Union[int, str]]
         The metric class to parse. Can be an integer (class ID) or string (class name).
     dataset : Moonwatcher
         The dataset containing the label_to_name mapping.
@@ -114,7 +114,7 @@ def _calculate_classification_metric(
     dataset: Moonwatcher,
     metric: str,
     metric_parameters: Dict[str, Any],
-    metric_class: Any,
+    metric_class: Optional[Union[int, str]],
 ) -> float:
     """Compute a classification metric using the provided Labels annotations.
 
@@ -130,7 +130,7 @@ def _calculate_classification_metric(
         Name of the metric to compute.
     metric_parameters : Dict[str, Any]
         Additional parameters for the metric computation.
-    metric_class : Any
+    metric_class : Optional[Union[int, str]]
         Optional class ID or name to compute class-specific metrics.
 
     Returns
@@ -146,11 +146,9 @@ def _calculate_classification_metric(
         If no predictions are provided.
     """
     try:
-        # Build ground truth tensor: squeeze each annotation to get a scalar.
         gt_tensor = torch.stack([ann.labels.squeeze()
                                 for ann in groundtruths_loaded])
 
-        # Build prediction tensor: use scores if available, otherwise use labels.
         pred_list = [
             ann.scores if ann.scores is not None else ann.labels.squeeze()
             for ann in predictions_loaded
@@ -160,7 +158,8 @@ def _calculate_classification_metric(
         pred_tensor = torch.stack(pred_list)
 
         # Set default averaging if not specified.
-        metric_parameters.setdefault("average", "macro")
+        if "average" not in metric_parameters:
+            metric_parameters["average"] = "macro"
 
         # If a specific class is requested, override averaging.
         metric_class_id = _parse_metric_class(metric_class, dataset)
@@ -194,7 +193,7 @@ def _calculate_detection_metric(
     dataset: Moonwatcher,
     metric: str,
     metric_parameters: Dict[str, Any],
-    metric_class: Any,
+    metric_class: Optional[Union[int, str]],
 ) -> float:
     """Compute a detection metric using BoundingBoxes annotations.
 
@@ -210,7 +209,7 @@ def _calculate_detection_metric(
         Name of the metric to compute.
     metric_parameters : Dict[str, Any]
         Additional parameters for the metric computation.
-    metric_class : Any
+    metric_class : Optional[Union[int, str]]
         Optional class ID or name to compute class-specific metrics.
 
     Returns
@@ -234,7 +233,6 @@ def _calculate_detection_metric(
         if metric_class_id is not None:
             metric_parameters["class_metrics"] = True
 
-        # For mAP-related metrics, set the IOU type.
         if metric in ["mAP", "mAP_small", "mAP_medium", "mAP_large"]:
             metric_parameters["iou_type"] = "bbox"
 
@@ -271,7 +269,7 @@ def calculate_metric(
     indices: List[int],
     metric: str,
     metric_parameters: Optional[Dict[str, Any]] = None,
-    metric_class: Any = None,
+    metric_class: Optional[Union[int, str]] = None,
 ) -> float:
     """Compute a metric (classification or detection) on the provided dataset.
 
@@ -285,7 +283,7 @@ def calculate_metric(
         Name of the metric to compute.
     metric_parameters : Optional[Dict[str, Any]], optional
         Additional parameters for the metric computation, by default None.
-    metric_class : Any, optional
+    metric_class : Optional[Union[int, str]], optional
         Optional class ID or name to compute class-specific metrics, by default None.
 
     Returns
