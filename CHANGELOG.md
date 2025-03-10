@@ -1,6 +1,76 @@
 # CHANGELOG
 
 
+## v0.1.1 (2025-03-10)
+
+### Bug Fixes
+
+- Bug fix
+  ([`ba4c6d6`](https://github.com/iamheinrich/doleus/commit/ba4c6d60b805662ea15bc2a0a6b76197cabc2189))
+
+- Renamed to root_dataset
+  ([`bb580b0`](https://github.com/iamheinrich/doleus/commit/bb580b0686b6552bfdc0b8dd493e0e0dcc18bf8e))
+
+- Renaming to root_dataset
+  ([`080ec72`](https://github.com/iamheinrich/doleus/commit/080ec72ef20eb8729371587a5610c6c8d4c237de))
+
+### Chores
+
+- Updated gitignore
+  ([`475776e`](https://github.com/iamheinrich/doleus/commit/475776e9477a5a503c200d955713cc9c1f505344))
+
+### Documentation
+
+- Object detection demo
+  ([`ec52aa7`](https://github.com/iamheinrich/doleus/commit/ec52aa7c8b4a0c5dfef4d568386fb5b4417e816f))
+
+### Refactoring
+
+- Changed docstrings
+  ([`45bf991`](https://github.com/iamheinrich/doleus/commit/45bf991b1fa376c9b043a0d486011ea877f3f555))
+
+- Cleaned up codebase
+  ([`e9173ce`](https://github.com/iamheinrich/doleus/commit/e9173ced68c0540bc7c2c5fbbe05cd8d44e96baf))
+
+- Complete refactoring
+  ([`ce589c5`](https://github.com/iamheinrich/doleus/commit/ce589c51ec982a55db415bc47a85e29b8a591f2d))
+
+- Refactored dataset class
+  ([`4d36e9a`](https://github.com/iamheinrich/doleus/commit/4d36e9abb9dcadc9624d47efdd7a6979ecddf207))
+
+- Refactored metric and dataset class
+  ([`c2a259d`](https://github.com/iamheinrich/doleus/commit/c2a259d7718d6d2e1bf8aa99e4fd2fe9e3389422))
+
+- Refactored slicing and metadata addition functions
+  ([`33a76d8`](https://github.com/iamheinrich/doleus/commit/33a76d8b5e9e5bfe0cec0102de6e43ea9be6e494))
+
+- Remove redundant files
+  ([`690cb7c`](https://github.com/iamheinrich/doleus/commit/690cb7ca3bf5987224ae4f3dc9de97e9ec3af42e))
+
+- Removed implicit caching and upload functions
+  ([`40f4986`](https://github.com/iamheinrich/doleus/commit/40f498673b0bc2f66f683d4f64afb0362bb0262d))
+
+- Removed redundant files
+  ([`c8dccc0`](https://github.com/iamheinrich/doleus/commit/c8dccc0a0584ec7a3b9f734a51da68ab77f7cdd5))
+
+- Removed unnecessairy files
+  ([`c27ab5f`](https://github.com/iamheinrich/doleus/commit/c27ab5ff9b8cb852f041d84d96410f2cc2fd4902))
+
+- Restructured metric functions
+  ([`8c9dadb`](https://github.com/iamheinrich/doleus/commit/8c9dadbce13ad9604599e022bae484fe08f90cc0))
+
+- Simplified annotation class
+  ([`4cbd92a`](https://github.com/iamheinrich/doleus/commit/4cbd92ae0da973150d117926b52a695f41eb7c02))
+
+### Testing
+
+- Adapted tests for dataset class and created conftest file
+  ([`e040216`](https://github.com/iamheinrich/doleus/commit/e04021688efea3b85df15d721687b2d008daf775))
+
+- Additional test for dataset
+  ([`a1f6a83`](https://github.com/iamheinrich/doleus/commit/a1f6a83888cb4eb2c31fc419512cd6896363df0a))
+
+
 ## v0.1.0 (2025-01-09)
 
 ### Bug Fixes
