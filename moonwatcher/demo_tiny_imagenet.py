@@ -1,3 +1,16 @@
+"""Demo script for evaluating a ResNet18 model on Tiny ImageNet.
+
+This script demonstrates the use of Moonwatcher for evaluating a pretrained
+ResNet18 model on a subset of the Tiny ImageNet dataset. It shows how to:
+1. Download and prepare the dataset
+2. Load and preprocess the data
+3. Load a pretrained model
+4. Generate predictions
+5. Create a Moonwatcher dataset
+6. Add metadata and slices
+7. Create and run checks
+"""
+
 import os
 import zipfile
 import urllib.request
@@ -17,7 +30,18 @@ model_checkpoint_url = "https://huggingface.co/zeyuanyin/tiny-imagenet/resolve/m
 checkpoint_path = "./rn18_50ep.pth"
 
 
-def download_tiny_imagenet(data_dir, zip_file, url):
+def download_tiny_imagenet(data_dir: str, zip_file: str, url: str) -> None:
+    """Download and extract the Tiny ImageNet dataset.
+
+    Parameters
+    ----------
+    data_dir : str
+        Directory where the dataset will be extracted.
+    zip_file : str
+        Name of the downloaded zip file.
+    url : str
+        URL to download the dataset from.
+    """
     if not os.path.exists(data_dir):
         print("Tiny ImageNet not found. Downloading...")
         urllib.request.urlretrieve(url, zip_file)
@@ -70,6 +94,7 @@ with torch.no_grad():
         predictions.append(outputs)
 predictions = torch.cat(predictions, dim=0)
 
+# TODO: Binary classification does not work
 # Step 7) Create Moonwatcher Dataset
 moonwatcher_dataset = MoonwatcherClassification(
     name="tiny_imagenet_subset",
@@ -81,15 +106,22 @@ moonwatcher_dataset = MoonwatcherClassification(
 # Step 8) Add Metadata
 moonwatcher_dataset.add_predefined_metadata("brightness")
 
-# Step 9) Create Slices
+# Step 9) Add Model Predictions
+model_id = moonwatcher_dataset.add_model_predictions(
+    predictions=predictions,
+    model_name="resnet18",
+    model_metadata={"architecture": "ResNet18", "trained_on": "TinyImageNet"}
+)
+
+# Step 10) Create Slices
 slice_bright = moonwatcher_dataset.slice_by_percentile("brightness", ">=", 50)
 slice_dim = moonwatcher_dataset.slice_by_percentile("brightness", "<", 50)
 
-# Step 10) Create Checks
+# Step 11) Create Checks
 check_bright = Check(
     name="accuracy_bright",
     dataset=slice_bright,
-    predictions=predictions,
+    model_id=model_id,
     metric="Accuracy",
     operator=">",
     value=0.5,
@@ -97,17 +129,17 @@ check_bright = Check(
 check_dim = Check(
     name="accuracy_dim",
     dataset=slice_dim,
-    predictions=predictions,
+    model_id=model_id,
     metric="Accuracy",
     operator=">",
     value=0.5,
 )
 
-# Step 11) Create Check Suite
+# Step 12) Create Check Suite
 check_suite = CheckSuite(
     name="test_brightness",
     checks=[check_bright, check_dim]
 )
 
-# Step 12) Run Checks
+# Step 13) Run Checks
 test_results = check_suite.run_all(show=True)

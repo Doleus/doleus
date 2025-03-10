@@ -1,16 +1,8 @@
 import torch
 import pytest
-import numpy as np
 
-from moonwatcher.utils.data import Task
-from moonwatcher.inference.inference import inference
-from moonwatcher.metric import calculate_metric_internal
+from moonwatcher.metric import calculate_metric
 from moonwatcher.dataset.dataset import MoonwatcherDataset
-from moonwatcher.utils.data_storage import (
-    load_groundtruths,
-    load_predictions,
-    do_predictions_exist,
-)
 
 
 class MockModel:
@@ -97,7 +89,7 @@ def test_calculate_iou():
         groundtruths_loaded,
         predictions_loaded,
     ) = load_data_for_testing()
-    result = calculate_metric_internal(
+    result = calculate_metric(
         model,
         relevant_ids,
         dataset,
@@ -117,7 +109,7 @@ def test_calculate_map():
         groundtruths_loaded,
         predictions_loaded,
     ) = load_data_for_testing()
-    result = calculate_metric_internal(
+    result = calculate_metric(
         model,
         relevant_ids,
         dataset,

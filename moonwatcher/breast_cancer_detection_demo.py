@@ -307,7 +307,6 @@ def dataset_output_transform(datapoint):
 moonwatcher = MoonwatcherClassification(
     name="VinDrMammo",
     dataset=dataset,
-    predictions=dummy_predictions,
     task=Task.MULTILABEL.value,
     num_classes=4,
     output_transform=dataset_output_transform,
@@ -317,7 +316,8 @@ moonwatcher = MoonwatcherClassification(
 accuracy_check = Check(
     name="Accuracy",
     # TODO: Rename dataset_or_slice to something which makes sense
-    dataset_or_slice=moonwatcher,
+    dataset=moonwatcher,
+    predictions=dummy_predictions,
     metric="Accuracy",
     operator=">",
     value=0.8,

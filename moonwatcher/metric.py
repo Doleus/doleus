@@ -1,3 +1,5 @@
+"""Metric computation utilities for classification and detection tasks."""
+
 from typing import Union, Dict, Any, List, Optional
 
 import torch
@@ -44,9 +46,26 @@ _METRIC_KEYS = {
 
 
 def _parse_metric_class(metric_class: Any, dataset: Moonwatcher) -> Optional[int]:
-    """
-    If metric_class is an int, return it directly.
-    If it's a string, convert to a label ID using dataset.label_to_name.
+    """Parse and validate the metric class parameter.
+
+    Parameters
+    ----------
+    metric_class : Any
+        The metric class to parse. Can be an integer (class ID) or string (class name).
+    dataset : Moonwatcher
+        The dataset containing the label_to_name mapping.
+
+    Returns
+    -------
+    Optional[int]
+        The parsed class ID, or None if metric_class was None.
+
+    Raises
+    ------
+    ValueError
+        If label_to_name mapping is not provided or class name not found.
+    TypeError
+        If metric_class is of unsupported type.
     """
     if metric_class is None:
         return None
@@ -71,8 +90,12 @@ def _parse_metric_class(metric_class: Any, dataset: Moonwatcher) -> Optional[int
 
 
 def _convert_detection_dicts(annotations_list: List[Dict[str, Any]]) -> None:
-    """
-    In-place convert bounding box dictionary values to torch.Tensor format.
+    """Convert bounding box dictionary values to torch.Tensor format.
+
+    Parameters
+    ----------
+    annotations_list : List[Dict[str, Any]]
+        List of annotation dictionaries containing bounding box information.
     """
     for ann in annotations_list:
         ann["boxes"] = torch.tensor(ann["boxes"], dtype=torch.float32)
@@ -93,9 +116,34 @@ def _calculate_classification_metric(
     metric_parameters: Dict[str, Any],
     metric_class: Any,
 ) -> float:
-    """
-    Compute a classification metric using the provided Labels annotations.
-    Assumes a single-label setup.
+    """Compute a classification metric using the provided Labels annotations.
+
+    Parameters
+    ----------
+    groundtruths_loaded : List[Labels]
+        List of ground truth label annotations.
+    predictions_loaded : List[Labels]
+        List of predicted label annotations.
+    dataset : Moonwatcher
+        The dataset containing task and class information.
+    metric : str
+        Name of the metric to compute.
+    metric_parameters : Dict[str, Any]
+        Additional parameters for the metric computation.
+    metric_class : Any
+        Optional class ID or name to compute class-specific metrics.
+
+    Returns
+    -------
+    float
+        The computed metric value.
+
+    Raises
+    ------
+    RuntimeError
+        If there is an error during metric computation.
+    ValueError
+        If no predictions are provided.
     """
     try:
         # Build ground truth tensor: squeeze each annotation to get a scalar.
@@ -133,7 +181,7 @@ def _calculate_classification_metric(
 
         return float(metric_value.item()) if hasattr(metric_value, "item") else float(metric_value)
     except Exception as e:
-        raise RuntimeError("Error in classification metric computation") from e
+        raise RuntimeError(f"Error in classification metric computation: {str(e)}") from e
 
 # -----------------------------------------------------------------------------
 # Detection Metric
@@ -148,9 +196,32 @@ def _calculate_detection_metric(
     metric_parameters: Dict[str, Any],
     metric_class: Any,
 ) -> float:
-    """
-    Compute a detection metric using BoundingBoxes annotations.
-    Converts annotations to the dictionary format expected by torchmetrics.
+    """Compute a detection metric using BoundingBoxes annotations.
+
+    Parameters
+    ----------
+    groundtruths_loaded : List[BoundingBoxes]
+        List of ground truth bounding box annotations.
+    predictions_loaded : List[BoundingBoxes]
+        List of predicted bounding box annotations.
+    dataset : Moonwatcher
+        The dataset containing task and class information.
+    metric : str
+        Name of the metric to compute.
+    metric_parameters : Dict[str, Any]
+        Additional parameters for the metric computation.
+    metric_class : Any
+        Optional class ID or name to compute class-specific metrics.
+
+    Returns
+    -------
+    float
+        The computed metric value.
+
+    Raises
+    ------
+    RuntimeError
+        If there is an error during metric computation.
     """
     try:
         gt_list = [ann.to_dict() for ann in groundtruths_loaded]
@@ -188,7 +259,7 @@ def _calculate_detection_metric(
 
         return float(result.item()) if hasattr(result, "item") else float(result)
     except Exception as e:
-        raise RuntimeError("Error in detection metric computation") from e
+        raise RuntimeError(f"Error in detection metric computation: {str(e)}") from e
 
 # -----------------------------------------------------------------------------
 # High-Level Metric Calculation
@@ -202,8 +273,30 @@ def calculate_metric(
     metric_parameters: Optional[Dict[str, Any]] = None,
     metric_class: Any = None,
 ) -> float:
-    """
-    Compute a metric (classification or detection) on the provided dataset (or slice).
+    """Compute a metric (classification or detection) on the provided dataset.
+
+    Parameters
+    ----------
+    dataset : Union[Moonwatcher, Slice]
+        The dataset or slice to compute metrics on.
+    indices : List[int]
+        List of indices to compute the metric for.
+    metric : str
+        Name of the metric to compute.
+    metric_parameters : Optional[Dict[str, Any]], optional
+        Additional parameters for the metric computation, by default None.
+    metric_class : Any, optional
+        Optional class ID or name to compute class-specific metrics, by default None.
+
+    Returns
+    -------
+    float
+        The computed metric value.
+
+    Raises
+    ------
+    ValueError
+        If the task type is not supported.
     """
     metric_parameters = metric_parameters or {}
 

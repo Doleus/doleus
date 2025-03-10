@@ -1,22 +1,14 @@
 import torch
 import pytest
-import numpy as np
 
-from moonwatcher.utils.data import Task
-from moonwatcher.inference.inference import inference
 from moonwatcher.metric import calculate_metric_internal
 from moonwatcher.dataset.dataset import MoonwatcherDataset
-from moonwatcher.utils.data_storage import (
-    load_groundtruths,
-    load_predictions,
-    do_predictions_exist,
-)
 
 
 class MockModel:
     def __init__(self, name, task, device):
         self.name = name
-        self.task_type = task_type
+        self.task_type = task
         self.device = device
 
 
