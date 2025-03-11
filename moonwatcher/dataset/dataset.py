@@ -345,10 +345,6 @@ class Moonwatcher(Dataset):
                 raise TypeError(
                     "For detection, predictions must be a list of length N."
                 )
-            print(f"predictions: {predictions}")
-            print(f"len(predictions): {len(predictions)}")
-            print(f"self.dataset: {self.dataset}")
-            print(f"len(self.dataset): {len(self.dataset)}")
             if len(predictions) != len(self.dataset):
                 raise ValueError(
                     "Mismatch between predictions list and dataset length."
