@@ -7,7 +7,7 @@ import torchvision
 from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 
-from doleus.check import Check, CheckSuite
+from doleus.checks import Check, CheckSuite
 from doleus.datasets import DoleusClassification
 from doleus.utils.data import Task
 

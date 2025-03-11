@@ -8,7 +8,7 @@ from torchvision.models.detection import (FasterRCNN_ResNet50_FPN_V2_Weights,
                                           fasterrcnn_resnet50_fpn_v2)
 from torchvision.ops import box_convert
 
-from doleus.check import Check, CheckSuite
+from doleus.checks import Check, CheckSuite
 # Import Moonwatcher components for evaluation
 from doleus.datasets import DoleusDetection
 
