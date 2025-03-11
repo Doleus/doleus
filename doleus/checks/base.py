@@ -3,11 +3,11 @@
 import json
 from typing import Any, Dict, List, Optional, Union
 
+from doleus.checks.visualization import visualize_report
 from doleus.datasets import Doleus, Slice, get_original_indices
 from doleus.metrics import calculate_metric
 from doleus.utils.data import OPERATOR_DICT
 from doleus.utils.helpers import get_current_timestamp
-from doleus.checks.visualization import visualize_report
 
 
 class Check:
@@ -253,4 +253,4 @@ class CheckSuite:
         Dict[str, Any]
             The checksuite report dictionary containing all check results.
         """
-        return self.run_all(show=show, save_report=save_report) 
+        return self.run_all(show=show, save_report=save_report)
