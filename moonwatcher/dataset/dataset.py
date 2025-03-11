@@ -67,7 +67,7 @@ def _get_raw_image(
 
 
 def _pil_or_numpy_to_tensor(
-    image: Union[Image.Image, np.ndarray, torch.Tensor]
+    image: Union[Image.Image, np.ndarray, torch.Tensor],
 ) -> torch.Tensor:
     """Convert various image formats to a standardized torch.Tensor format.
 
@@ -434,6 +434,8 @@ class Moonwatcher(Dataset):
         elif isinstance(raw_image, Image.Image):
             raw_image = np.array(raw_image)
         return raw_image
+    
+    
 
     def add_metadata(
         self, metadata_key: str, value_or_func: Union[Any, Callable[[np.ndarray], Any]]
@@ -460,6 +462,8 @@ class Moonwatcher(Dataset):
                 value = value_or_func
 
             self.datapoints[i].add_metadata(metadata_key, value)
+    
+    
 
     def add_metadata_from_list(self, metadata_list: List[Dict[str, Any]]):
         """Add metadata from a list of dictionaries.
@@ -503,6 +507,27 @@ class Moonwatcher(Dataset):
             if key not in ATTRIBUTE_FUNCTIONS:
                 raise ValueError(f"Unknown predefined metadata key: {key}")
             self.add_metadata(key, ATTRIBUTE_FUNCTIONS[key])
+
+    def add_metadata_from_dataframe(self, df):
+        """Add metadata from a pandas DataFrame.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            DataFrame containing metadata. Each row corresponds to a datapoint in order
+            (first row = first datapoint, etc), and each column becomes a metadata key.
+
+        Raises
+        ------
+        ValueError
+            If DataFrame has more rows than dataset has datapoints.
+        """
+        if len(df) > len(self.datapoints):
+            raise ValueError(f"DataFrame has {len(df)} rows but dataset only has {len(self.datapoints)} datapoints")
+
+        for idx, row in enumerate(df.itertuples(index=False)):
+            metadata_dict = {col: val for col, val in zip(df.columns, row)}
+            self.datapoints[idx].metadata.update(metadata_dict)
 
     # -------------------------------------------------------------------------
     #                                SLICING
