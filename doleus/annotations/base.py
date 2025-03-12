@@ -210,4 +210,4 @@ class GroundTruths(AnnotationStore):
         str
             String representation including dataset name and number of annotations.
         """
-        return f"{self.__class__.__name__}(dataset='{self.dataset.name}', num_annotations={len(self.annotations)})" 
+        return f"{self.__class__.__name__}(dataset='{self.dataset.name}', num_annotations={len(self.annotations)})"

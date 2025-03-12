@@ -9,11 +9,11 @@ from PIL import Image
 from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
+from doleus.analysis.image_metadata import ATTRIBUTE_FUNCTIONS
 from doleus.annotations.base import GroundTruths, Predictions
 from doleus.annotations.classification import Labels
 from doleus.annotations.detection import BoundingBoxes
 from doleus.storage.datapoint import Datapoint
-from doleus.analysis.image_metadata import ATTRIBUTE_FUNCTIONS
 from doleus.storage.prediction_store import PredictionStore
 from doleus.utils.data import OPERATOR_DICT, TaskType
 from doleus.utils.helpers import get_current_timestamp

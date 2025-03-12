@@ -87,4 +87,4 @@ def calculate_classification_metric(
     except Exception as e:
         raise RuntimeError(
             f"Error in classification metric computation: {str(e)}"
-        ) from e 
+        ) from e

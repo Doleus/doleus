@@ -63,4 +63,4 @@ class Labels(Annotation):
         return (
             f"{self.__class__.__name__}(datapoint_number={self.datapoint_number}, "
             f"labels={labels_str}, {scores_str})"
-        ) 
+        )

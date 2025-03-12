@@ -71,4 +71,4 @@ class BoundingBoxes(Annotation):
         return (
             f"{self.__class__.__name__}(datapoint_number={self.datapoint_number}, "
             f"num_boxes={n_boxes}, scores_present={self.scores is not None})"
-        ) 
+        )

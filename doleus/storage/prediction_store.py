@@ -11,7 +11,7 @@ from doleus.utils.helpers import get_current_timestamp
 @dataclass
 class PredictionMetadata:
     """Metadata for a set of predictions.
-    
+
     Contains information about when and by which model predictions were generated.
     """
 
@@ -21,7 +21,7 @@ class PredictionMetadata:
 
 class PredictionStore:
     """Centralized storage for model predictions across multiple datasets.
-    
+
     This class provides a way to store, retrieve, and manage model predictions
     with associated metadata.
     """
@@ -67,19 +67,19 @@ class PredictionStore:
         self, dataset_id: str, model_id: str
     ) -> Union[torch.Tensor, List[Dict[str, Any]]]:
         """Retrieve predictions for a specific dataset and model.
-        
+
         Parameters
         ----------
         dataset_id : str
             ID of the dataset to get predictions for
         model_id : str
             ID of the model to get predictions from
-            
+
         Returns
         -------
         Union[torch.Tensor, List[Dict[str, Any]]]
             The stored predictions
-            
+
         Raises
         ------
         KeyError
@@ -93,17 +93,17 @@ class PredictionStore:
 
     def get_metadata(self, model_id: str) -> PredictionMetadata:
         """Get metadata for a specific model's predictions.
-        
+
         Parameters
         ----------
         model_id : str
             ID of the model to get metadata for
-            
+
         Returns
         -------
         PredictionMetadata
             Metadata for the specified model
-            
+
         Raises
         ------
         KeyError
@@ -115,17 +115,17 @@ class PredictionStore:
 
     def list_models(self, dataset_id: str = None) -> List[str]:
         """List all model names, optionally filtered by dataset.
-        
+
         Parameters
         ----------
         dataset_id : str, optional
             ID of the dataset to filter by, by default None
-            
+
         Returns
         -------
         List[str]
             List of model IDs
-            
+
         Raises
         ------
         KeyError
@@ -135,4 +135,4 @@ class PredictionStore:
             if dataset_id not in self._predictions:
                 raise KeyError(f"No predictions found for dataset: {dataset_id}")
             return list(self._predictions[dataset_id].keys())
-        return list(self._metadata.keys()) 
+        return list(self._metadata.keys())
