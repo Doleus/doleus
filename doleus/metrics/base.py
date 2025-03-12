@@ -43,7 +43,6 @@ METRIC_KEYS = {
 # Helper Functions
 # -----------------------------------------------------------------------------
 
-
 def parse_metric_class(
     metric_class: Optional[Union[int, str]], dataset: Doleus
 ) -> Optional[int]:
@@ -111,7 +110,6 @@ def convert_detection_dicts(annotations_list: List[Dict[str, Any]]) -> None:
 # High-Level Metric Calculation
 # -----------------------------------------------------------------------------
 
-
 def calculate_metric(
     dataset: Union[Doleus, Slice],
     indices: List[int],
@@ -151,9 +149,7 @@ def calculate_metric(
 
     if dataset.task_type == TaskType.CLASSIFICATION.value:
         # Import here to avoid circular import
-        from doleus.metrics.classification import \
-            calculate_classification_metric
-
+        from doleus.metrics.classification import calculate_classification_metric
         return calculate_classification_metric(
             groundtruths_loaded,
             predictions_loaded,
@@ -165,7 +161,6 @@ def calculate_metric(
     elif dataset.task_type == TaskType.DETECTION.value:
         # Import here to avoid circular import
         from doleus.metrics.detection import calculate_detection_metric
-
         return calculate_detection_metric(
             groundtruths_loaded,
             predictions_loaded,
@@ -175,4 +170,4 @@ def calculate_metric(
             metric_class,
         )
     else:
-        raise ValueError(f"Unsupported task type: {dataset.task_type}")
+        raise ValueError(f"Unsupported task type: {dataset.task_type}") 

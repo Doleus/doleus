@@ -6,8 +6,7 @@ import torch
 
 from doleus.annotations import BoundingBoxes
 from doleus.datasets import Doleus
-from doleus.metrics.base import (METRIC_FUNCTIONS, METRIC_KEYS,
-                                 convert_detection_dicts, parse_metric_class)
+from doleus.metrics.base import METRIC_FUNCTIONS, METRIC_KEYS, parse_metric_class, convert_detection_dicts
 
 
 def calculate_detection_metric(
@@ -83,4 +82,4 @@ def calculate_detection_metric(
 
         return float(result.item()) if hasattr(result, "item") else float(result)
     except Exception as e:
-        raise RuntimeError(f"Error in detection metric computation: {str(e)}") from e
+        raise RuntimeError(f"Error in detection metric computation: {str(e)}") from e 

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from doleus.annotations import Labels
+from doleus.annotations.classification import Labels
 from doleus.datasets import Doleus
 from doleus.metrics.base import METRIC_FUNCTIONS, parse_metric_class
 
@@ -87,4 +87,4 @@ def calculate_classification_metric(
     except Exception as e:
         raise RuntimeError(
             f"Error in classification metric computation: {str(e)}"
-        ) from e
+        ) from e 

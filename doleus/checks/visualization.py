@@ -14,7 +14,12 @@ REPORT_FORMATTING = {
 }
 
 # Symbol mappings for operators
-OPERATOR_SYMBOLS = {">=": "≥", "<=": "≤", "==": "=", "!=": "≠"}
+OPERATOR_SYMBOLS = {
+    ">=": "≥",
+    "<=": "≤",
+    "==": "=",
+    "!=": "≠"
+}
 
 
 def visualize_report(report: Dict[str, Any]):
@@ -119,4 +124,4 @@ class ReportVisualizer:
         else:
             print(
                 f"{line_str.ljust(40)} {result_val:.5f}  ({metric_name} on {root_dataset_id})"
-            )
+            ) 
