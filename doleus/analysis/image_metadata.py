@@ -95,42 +95,6 @@ def compute_resolution(image: np.ndarray) -> int:
     return height * width
 
 
-def extract_exif(image_path: str) -> Dict[str, Any]:
-    """Extract EXIF metadata from an image file.
-
-    Parameters
-    ----------
-    image_path : str
-        Path to the image file.
-
-    Returns
-    -------
-    Dict[str, Any]
-        Dictionary containing EXIF metadata.
-    """
-    # Implementation would depend on a library like Pillow
-    # This is a placeholder implementation
-    return {}
-
-
-def extract_timestamp(image_path: str) -> str:
-    """Extract timestamp information from an image file.
-
-    Parameters
-    ----------
-    image_path : str
-        Path to the image file.
-
-    Returns
-    -------
-    str
-        Timestamp string, or empty string if not available.
-    """
-    # Implementation would extract DateTimeOriginal from EXIF
-    # This is a placeholder implementation
-    return ""
-
-
 # Registry of available metadata computation functions
 ATTRIBUTE_FUNCTIONS = {
     "brightness": compute_brightness,

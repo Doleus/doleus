@@ -31,5 +31,4 @@ class DataType(Enum):
     CHECKSUITE = "checksuite"
     CHECK_REPORT = "check_report"
     CHECKSUITE_REPORT = "checksuite_report"
-    PREDICTIONS = "predictions"
-    GROUNDTRUTHS = "groundtruths"
+    ANNOTATIONS = "annotations"

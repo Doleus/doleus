@@ -49,18 +49,3 @@ class Labels(Annotation):
         if self.scores is not None:
             output["scores"] = self.scores
         return output
-
-    def __repr__(self) -> str:
-        """Return string representation of the labels.
-
-        Returns
-        -------
-        str
-            String representation including labels and scores presence.
-        """
-        labels_str = self.labels.tolist() if self.labels.numel() < 6 else "..."
-        scores_str = "scores_present" if self.scores is not None else "no_scores"
-        return (
-            f"{self.__class__.__name__}(datapoint_number={self.datapoint_number}, "
-            f"labels={labels_str}, {scores_str})"
-        )

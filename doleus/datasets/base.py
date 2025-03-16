@@ -10,98 +10,14 @@ from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
 from doleus.analysis.image_metadata import ATTRIBUTE_FUNCTIONS
-from doleus.annotations.base import GroundTruths, Predictions
+from doleus.annotations.base import Annotations
 from doleus.annotations.classification import Labels
 from doleus.annotations.detection import BoundingBoxes
 from doleus.storage.datapoint import Datapoint
 from doleus.storage.prediction_store import PredictionStore
 from doleus.utils.data import OPERATOR_DICT, TaskType
-from doleus.utils.helpers import get_current_timestamp
-
-
-def find_root_dataset(dataset: Dataset) -> Dataset:
-    """Find the root dataset by iteratively traversing dataset wrappers.
-
-    Parameters
-    ----------
-    dataset : Dataset
-        The dataset to find the root of, which may be wrapped in one or more
-        dataset wrappers (e.g., Subset).
-
-    Returns
-    -------
-    Dataset
-        The root dataset that contains the actual data.
-    """
-    current = dataset
-    while hasattr(current, "dataset"):
-        current = current.dataset
-    return current
-
-
-def _get_raw_image(
-    root_dataset: Dataset, index: int
-) -> Union[Image.Image, np.ndarray, torch.Tensor]:
-    """Retrieve the original image from a dataset bypassing its transforms.
-
-    Parameters
-    ----------
-    root_dataset : Dataset
-        The root dataset to get the image from.
-    index : int
-        The index of the image to retrieve.
-
-    Returns
-    -------
-    Union[Image.Image, np.ndarray, torch.Tensor]
-        The raw image in its original format, before any transforms are applied.
-    """
-    if not hasattr(root_dataset, "transform"):
-        return root_dataset[index][0]
-
-    original_transform = root_dataset.transform
-    root_dataset.transform = None
-    data = root_dataset[index]
-    image = data[0]
-    root_dataset.transform = original_transform
-    return image
-
-
-def _pil_or_numpy_to_tensor(
-    image: Union[Image.Image, np.ndarray, torch.Tensor]
-) -> torch.Tensor:
-    """Convert numpy and PIL image formats to a standardized torch.Tensor format.
-
-    Parameters
-    ----------
-    image : Union[Image.Image, np.ndarray, torch.Tensor]
-        The input image in PIL, numpy array, or torch.Tensor format.
-
-    Returns
-    -------
-    torch.Tensor
-        A tensor of shape [C, H, W] with float values in [0,1].
-
-    Raises
-    ------
-    TypeError
-        If the input image format is not supported.
-    """
-    if isinstance(image, Image.Image):
-        return transforms.ToTensor()(image)
-
-    elif isinstance(image, np.ndarray):
-        if image.dtype != np.float32:
-            image = image.astype(np.float32) / 255.0
-        return torch.from_numpy(image.transpose((2, 0, 1)))
-
-    elif isinstance(image, torch.Tensor):
-        if image.dim() == 3 and image.shape[-1] == 3:
-            return image.permute(2, 0, 1)
-        return image
-
-    else:
-        raise TypeError(f"Unsupported image type {type(image)}")
+from doleus.utils.utils import (find_root_dataset, get_current_timestamp,
+                                get_raw_image)
 
 
 class Doleus(Dataset):
@@ -170,8 +86,8 @@ class Doleus(Dataset):
                 md = datapoints_metadata[i]
             self.datapoints.append(Datapoint(id=i, metadata=md))
 
-        self.groundtruths = GroundTruths(dataset=self)
-        self.predictions = Predictions(dataset=self)
+        self.groundtruths = Annotations(dataset=self)
+        self.predictions = Annotations(dataset=self)
         self.add_groundtruths()
         self.prediction_store = PredictionStore()
 
@@ -223,7 +139,7 @@ class Doleus(Dataset):
             If the dataset returns unexpected data format or has unsupported
             task type.
         """
-        self.groundtruths = GroundTruths(dataset=self)
+        self.groundtruths = Annotations(dataset=self)
 
         for idx in tqdm(
             range(len(self.dataset)), desc=f"Building GROUND TRUTHS for {self.name}"
@@ -291,7 +207,7 @@ class Doleus(Dataset):
         ValueError
             If predictions size doesn't match dataset size or has invalid shape.
         """
-        self.predictions = Predictions(dataset=self)
+        self.predictions = Annotations(dataset=self)
 
         # Classification case: predictions is typically [N, num_classes]
         if self.task_type == TaskType.CLASSIFICATION.value:
@@ -405,7 +321,7 @@ class Doleus(Dataset):
             The image as a numpy array in BGR format.
         """
         root_dataset = find_root_dataset(self.dataset)
-        raw_image = _get_raw_image(root_dataset, index)
+        raw_image = get_raw_image(root_dataset, index)
         if isinstance(raw_image, torch.Tensor):
             raw_image = (raw_image.permute(1, 2, 0).cpu().numpy() * 255).astype(
                 np.uint8

@@ -20,32 +20,26 @@ class Annotation:
         """
         self.datapoint_number = datapoint_number
 
-    def __repr__(self) -> str:
-        """Return string representation of the annotation.
 
-        Returns
-        -------
-        str
-            String representation including the class name and datapoint number.
-        """
-        return f"{self.__class__.__name__}(datapoint_number={self.datapoint_number})"
-
-
-class AnnotationStore:
-    """Generic container for managing annotation objects.
+class Annotations:
+    """Container for managing annotation objects.
 
     This class provides a container for Labels or BoundingBoxes annotations,
     allowing indexing by datapoint number and iteration over all annotations.
+    It can be used to store both predictions and ground truths.
     """
 
-    def __init__(self, annotations: List[Annotation] = None):
+    def __init__(self, dataset=None, annotations: List[Annotation] = None):
         """Initialize an Annotations container.
 
         Parameters
         ----------
+        dataset : optional
+            Reference to the dataset (e.g., Doleus object), by default None.
         annotations : List[Annotation], optional
             Initial list of annotation objects to store, by default None.
         """
+        self.dataset = dataset
         self.annotations = annotations if annotations is not None else []
         # Map from datapoint_number -> index in self.annotations
         self.datapoint_number_to_annotation_index = {}
@@ -147,67 +141,3 @@ class AnnotationStore:
             Iterator over all annotations in the container.
         """
         return iter(self.annotations)
-
-
-class Predictions(AnnotationStore):
-    """Specialized container for predicted annotations.
-
-    This container is specifically for storing predictions (Labels or
-    BoundingBoxes with scores) and maintains a reference to its dataset.
-    """
-
-    def __init__(self, dataset, predictions: List[Annotation] = None):
-        """Initialize a Predictions container.
-
-        Parameters
-        ----------
-        dataset
-            Reference to the dataset (e.g., Doleus object).
-        predictions : List[Annotation], optional
-            List of prediction annotations (Labels or BoundingBoxes with scores),
-            by default None.
-        """
-        super().__init__(annotations=predictions)
-        self.dataset = dataset
-
-    def __repr__(self) -> str:
-        """Return string representation of the predictions container.
-
-        Returns
-        -------
-        str
-            String representation including dataset name and number of annotations.
-        """
-        return f"{self.__class__.__name__}(dataset='{self.dataset.name}', num_annotations={len(self.annotations)})"
-
-
-class GroundTruths(AnnotationStore):
-    """Specialized container for ground truth annotations.
-
-    This container is specifically for storing ground truths (Labels or
-    BoundingBoxes without scores) and maintains a reference to its dataset.
-    """
-
-    def __init__(self, dataset, groundtruths: List[Annotation] = None):
-        """Initialize a GroundTruths container.
-
-        Parameters
-        ----------
-        dataset
-            Reference to the dataset (e.g., Doleus object).
-        groundtruths : List[Annotation], optional
-            List of ground truth annotations (Labels or BoundingBoxes),
-            by default None.
-        """
-        super().__init__(annotations=groundtruths)
-        self.dataset = dataset
-
-    def __repr__(self) -> str:
-        """Return string representation of the ground truths container.
-
-        Returns
-        -------
-        str
-            String representation including dataset name and number of annotations.
-        """
-        return f"{self.__class__.__name__}(dataset='{self.dataset.name}', num_annotations={len(self.annotations)})"

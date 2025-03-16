@@ -1,6 +1,6 @@
 """Dataset slicing functionality for model evaluation and analysis."""
 
-from typing import Any, List
+from typing import List
 
 from doleus.datasets.base import Doleus
 
@@ -58,7 +58,6 @@ class Slice(Doleus):
         Any
             The datapoint from the parent dataset corresponding to the slice index.
         """
-        # Map the local slice index to the corresponding index in the root dataset.
         root_idx = self.indices[idx]
         return self.root_dataset.dataset[root_idx]
 

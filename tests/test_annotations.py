@@ -15,9 +15,9 @@ multi-label classifications while maintaining the requirement for 1D integer ten
 
 import pytest
 import torch
-from moonwatcher.annotations import (Annotations, BoundingBoxes, GroundTruths,
-                                     Labels, PredictedBoundingBoxes,
-                                     PredictedLabels, Predictions)
+
+from doleus.annotations import (Annotation, Annotations, BoundingBoxes, Labels,
+                                PredictedBoundingBoxes, PredictedLabels)
 
 
 def tensor(data, dtype=torch.float32):
@@ -258,35 +258,40 @@ def test_annotations_methods():
 
 
 # Test for Predictions and GroundTruths
-def test_predictions_validation():
+def test_annotations_container():
     class MockDataset:
         name = "test_dataset"
 
     dataset = MockDataset()
+    # Create various annotation types
     bbox = BoundingBoxes(1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32))
-    label = Labels(1, tensor([1], dtype=torch.int32))
-
-    # Test that Predictions only accepts PredictedBoundingBoxes/PredictedLabels
-    with pytest.raises(TypeError):
-        Predictions(dataset, [bbox])  # Regular BoundingBoxes not allowed
-
-    with pytest.raises(TypeError):
-        Predictions(dataset, [label])  # Regular Labels not allowed
-
-
-def test_groundtruths_validation():
-    class MockDataset:
-        name = "test_dataset"
-
-    dataset = MockDataset()
+    label = Labels(2, tensor([1], dtype=torch.int32))
     pred_bbox = PredictedBoundingBoxes(
-        1, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32), tensor([0.9])
+        3, tensor([[0, 1, 2, 3]]), tensor([1], dtype=torch.int32), tensor([0.9])
     )
-    pred_label = PredictedLabels(1, tensor([1], dtype=torch.int32), tensor([0.9]))
-    # Test that GroundTruths only accepts BoundingBoxes/Labels
-    with pytest.raises(TypeError):
-        # PredictedBoundingBoxes not allowed
-        GroundTruths(dataset, groundtruths=[pred_bbox])
-    with pytest.raises(TypeError):
-        # PredictedLabels not allowed
-        GroundTruths(dataset, groundtruths=[pred_label])
+    pred_label = PredictedLabels(4, tensor([1], dtype=torch.int32), tensor([0.9]))
+
+    # Create an Annotations instance
+    annotations = Annotations(dataset=dataset)
+
+    # Test adding annotations
+    annotations.add(bbox)
+    annotations.add(label)
+    annotations.add(pred_bbox)
+    annotations.add(pred_label)
+
+    # Test retrieving annotations
+    assert annotations.get(1) == bbox
+    assert annotations.get(2) == label
+    assert annotations.get(3) == pred_bbox
+    assert annotations.get(4) == pred_label
+
+    # Test length
+    assert len(annotations) == 4
+
+    # Test iteration
+    for ann in annotations:
+        assert isinstance(ann, Annotation)
+
+    # Test datapoint IDs
+    assert set(annotations.get_datapoint_ids()) == {1, 2, 3, 4}

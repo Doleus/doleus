@@ -7,7 +7,7 @@ from doleus.checks.visualization import visualize_report
 from doleus.datasets import Doleus, Slice, get_original_indices
 from doleus.metrics import calculate_metric
 from doleus.utils.data import OPERATOR_DICT
-from doleus.utils.helpers import get_current_timestamp
+from doleus.utils.utils import get_current_timestamp
 
 
 class Check:

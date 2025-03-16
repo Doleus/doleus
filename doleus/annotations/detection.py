@@ -58,17 +58,3 @@ class BoundingBoxes(Annotation):
         if self.scores is not None:
             output["scores"] = self.scores
         return output
-
-    def __repr__(self) -> str:
-        """Return string representation of the bounding boxes.
-
-        Returns
-        -------
-        str
-            String representation including number of boxes and scores presence.
-        """
-        n_boxes = self.boxes_xyxy.shape[0]
-        return (
-            f"{self.__class__.__name__}(datapoint_number={self.datapoint_number}, "
-            f"num_boxes={n_boxes}, scores_present={self.scores is not None})"
-        )
