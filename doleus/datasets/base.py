@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-import torchvision.transforms as transforms
 from PIL import Image
 from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
@@ -398,6 +397,29 @@ class Doleus(Dataset):
             if key not in ATTRIBUTE_FUNCTIONS:
                 raise ValueError(f"Unknown predefined metadata key: {key}")
             self.add_metadata(key, ATTRIBUTE_FUNCTIONS[key])
+
+    def add_metadata_from_dataframe(self, df):
+        """Add metadata from a pandas DataFrame.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            DataFrame containing metadata. Each row corresponds to a datapoint in order
+            (first row = first datapoint, etc), and each column becomes a metadata key.
+
+        Raises
+        ------
+        ValueError
+            If DataFrame has more rows than dataset has datapoints.
+        """
+        if len(df) > len(self.datapoints):
+            raise ValueError(
+                f"DataFrame has {len(df)} rows but dataset only has {len(self.datapoints)} datapoints"
+            )
+
+        for idx, row in enumerate(df.itertuples(index=False)):
+            metadata_dict = {col: val for col, val in zip(df.columns, row)}
+            self.datapoints[idx].metadata.update(metadata_dict)
 
     # -------------------------------------------------------------------------
     #                                SLICING
