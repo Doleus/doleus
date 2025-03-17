@@ -1,5 +1,3 @@
-"""Utility functions for the Doleus project."""
-
 import datetime
 from typing import Union
 

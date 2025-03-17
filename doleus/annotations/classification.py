@@ -1,5 +1,3 @@
-"""Classification annotation classes for storing labels and predictions."""
-
 from typing import Optional
 
 from torch import Tensor
@@ -42,8 +40,7 @@ class Labels(Annotation):
         Returns
         -------
         dict
-            Dictionary with keys 'labels' and optionally 'scores', suitable for
-            metrics or downstream tasks.
+            Dictionary with keys 'labels' and optionally 'scores'.
         """
         output = {"labels": self.labels}
         if self.scores is not None:

@@ -1,5 +1,3 @@
-"""Core dataset classes and utilities for model evaluation and analysis."""
-
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
@@ -20,14 +18,13 @@ from doleus.utils.utils import (find_root_dataset, get_current_timestamp,
 
 
 class Doleus(Dataset):
-    """Dataset wrapper for model evaluation and analysis.
+    """Dataset wrapper for Doleus.
 
-    This class wraps a PyTorch dataset and provides functionality for:
-    - Storing and managing ground truth annotations
-    - Managing model predictions
+    This class provides functionality for:
+    - Storing the dataset
+    - Storing model predictions
     - Computing and storing metadata
     - Creating dataset slices based on various criteria
-    - Evaluating model performance on different slices
     """
 
     def __init__(
@@ -41,7 +38,7 @@ class Doleus(Dataset):
         metadata: Dict[str, Any] = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
     ):
-        """Initialize a Doleus dataset wrapper.
+        """Initialize a dataset wrapper.
 
         Parameters
         ----------
@@ -85,8 +82,8 @@ class Doleus(Dataset):
                 md = datapoints_metadata[i]
             self.datapoints.append(Datapoint(id=i, metadata=md))
 
-        self.groundtruths = Annotations(dataset=self)
-        self.predictions = Annotations(dataset=self)
+        self.groundtruths = Annotations()
+        self.predictions = Annotations()
         self.add_groundtruths()
         self.prediction_store = PredictionStore()
 
@@ -97,9 +94,6 @@ class Doleus(Dataset):
         return self.dataset[item]
 
     def __getattr__(self, attr):
-        """
-        Proxy any attribute lookup to the underlying dataset if not found here.
-        """
         return getattr(self.dataset, attr)
 
     # -------------------------------------------------------------------------
@@ -128,25 +122,13 @@ class Doleus(Dataset):
         """Add ground truth annotations from the underlying dataset.
 
         This method loops over every item in the underlying dataset and converts
-        the outputs into custom annotation objects (Labels or BoundingBoxes). For
-        classification tasks, expects (image, label) tuples. For detection tasks,
-        expects (image, bounding_boxes, labels) tuples.
-
-        Raises
-        ------
-        ValueError
-            If the dataset returns unexpected data format or has unsupported
-            task type.
+        the outputs into custom annotation objects (Labels or BoundingBoxes).
         """
-        self.groundtruths = Annotations(dataset=self)
-
-        for idx in tqdm(
-            range(len(self.dataset)), desc=f"Building GROUND TRUTHS for {self.name}"
-        ):
+        self.groundtruths = Annotations()
+        for idx in range(len(self.dataset)):
             data = self.dataset[idx]
 
             if self.task_type == TaskType.CLASSIFICATION.value:
-                # Expect (image, label)
                 if len(data) < 2:
                     raise ValueError(
                         "Expected (image, label) from dataset, got fewer elements."
@@ -163,7 +145,6 @@ class Doleus(Dataset):
                 self.groundtruths.add(ann)
 
             elif self.task_type == TaskType.DETECTION.value:
-                # Expect (image, bounding_boxes, labels)
                 if len(data) != 3:
                     raise ValueError(
                         "Expected (image, bounding_boxes, labels) for detection."
@@ -198,15 +179,8 @@ class Doleus(Dataset):
             For detection tasks:
                 List of length N, where each element is a dictionary containing
                 'boxes' (M,4), 'labels' (M,), and 'scores' (M,) tensors.
-
-        Raises
-        ------
-        TypeError
-            If predictions are not in the expected format for the task.
-        ValueError
-            If predictions size doesn't match dataset size or has invalid shape.
         """
-        self.predictions = Annotations(dataset=self)
+        self.predictions = Annotations()
 
         # Classification case: predictions is typically [N, num_classes]
         if self.task_type == TaskType.CLASSIFICATION.value:
@@ -224,7 +198,6 @@ class Doleus(Dataset):
             # If shape is [N], assume these are predicted labels (class IDs)
             # If shape is [N, C], assume these are logits or probabilities
             if predictions.dim() == 1:
-                # predicted labels
                 for i in range(num_samples):
                     label_val = predictions[i].unsqueeze(0)
                     ann = Labels(datapoint_number=i, labels=label_val, scores=None)
@@ -296,7 +269,6 @@ class Doleus(Dataset):
         model_id : str
             Name of the model that generated these predictions
         """
-        # Store predictions in the prediction store
         self.prediction_store.add_predictions(
             predictions=predictions,
             dataset_id=self.name,
@@ -491,7 +463,7 @@ class Doleus(Dataset):
         if slice_name is None:
             slice_name = self._generate_filename(metadata_key, operator_str, threshold)
 
-        # Import here to avoid circular import
+        # TODO: avoid circular import without this workaround
         from doleus.datasets.slice import Slice
 
         return Slice(name=slice_name, root_dataset=self, indices=indices)
@@ -532,7 +504,7 @@ class Doleus(Dataset):
         if slice_name is None:
             slice_name = self._generate_filename(metadata_key, operator_str, percentile)
 
-        # Import here to avoid circular import
+        # TODO: avoid circular import without this workaround
         from doleus.datasets.slice import Slice
 
         return Slice(name=slice_name, root_dataset=self, indices=indices)
@@ -561,13 +533,6 @@ class Doleus(Dataset):
         -------
         Slice
             A new slice containing datapoints that match the target value.
-
-        Raises
-        ------
-        KeyError
-            If metadata_key doesn't exist in any datapoint.
-        ValueError
-            If no datapoints match the target value.
         """
 
         if not any(metadata_key in dp.metadata for dp in self.datapoints):
@@ -609,7 +574,7 @@ class Doleus(Dataset):
             value_str = "".join(c if c.isalnum() else "_" for c in value_str)
             slice_name = f"{metadata_key}_{value_str}"
 
-        # Import here to avoid circular import
+        # TODO: avoid circular import without this workaround
         from doleus.datasets.slice import Slice
 
         return Slice(name=slice_name, root_dataset=self, indices=indices)
@@ -636,12 +601,6 @@ class Doleus(Dataset):
         -------
         Slice
             A new slice containing datapoints with the specified classes.
-
-        Raises
-        ------
-        ValueError
-            If neither class_names nor class_ids are provided, or if class names
-            are invalid.
         """
         if not class_names and not class_ids:
             raise ValueError("Must provide either class_names or class_ids")
@@ -671,18 +630,9 @@ class Doleus(Dataset):
         filtered_indices = []
         for datapoint in self.datapoints:
             original_idx = datapoint.id
+            ground_truth = self.groundtruths.get(original_idx)
 
-            try:
-                ground_truth = self.groundtruths.get(original_idx)
-            except KeyError:
-                continue  # Skip datapoints without ground truth
-
-            # Unified handling for both annotation types
             if isinstance(ground_truth, (Labels, BoundingBoxes)):
-                # Check if any label matches our target classes
-                # Works for:
-                # - Classification (single/multi-label): labels tensor shape [N]
-                # - Detection: labels tensor shape [M] (per-box labels)
                 if torch.any(
                     torch.isin(ground_truth.labels, torch.tensor(list(class_id_set)))
                 ):
@@ -694,7 +644,7 @@ class Doleus(Dataset):
             class_str = "_".join(map(str, target_classes))[:50]  # Limit length
             slice_name = f"gt_class_{class_str}"
 
-        # Import here to avoid circular import
+        # TODO: avoid circular import without this workaround
         from doleus.datasets.slice import Slice
 
         return Slice(name=slice_name, root_dataset=self, indices=filtered_indices)
@@ -718,7 +668,7 @@ def get_original_indices(dataset: Union["Doleus", "Slice"]) -> List[int]:
     TypeError
         If the dataset is not a Doleus or Slice instance.
     """
-    # Import here to avoid circular import
+    # TODO: avoid circular import without this workaround
     from doleus.datasets.slice import Slice
 
     if isinstance(dataset, Slice):

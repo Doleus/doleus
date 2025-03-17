@@ -1,8 +1,5 @@
-"""Visualization utilities for check and checksuite reports."""
-
 from typing import Any, Dict
 
-# Formatting constants for report visualization
 REPORT_FORMATTING = {
     "PASS_EMOJI": "✅",  # \u2705
     "FAIL_EMOJI": "❌",  # \u274C
@@ -13,7 +10,6 @@ REPORT_FORMATTING = {
     "GREEN": "\033[92m",
 }
 
-# Symbol mappings for operators
 OPERATOR_SYMBOLS = {">=": "≥", "<=": "≤", "==": "=", "!=": "≠"}
 
 
@@ -30,7 +26,7 @@ def visualize_report(report: Dict[str, Any]):
 
 
 class ReportVisualizer:
-    """Helper class to pretty-print check and checksuite reports to the console."""
+    """Helper class to print check and checksuite reports to the console."""
 
     def __init__(self):
         """Initialize the ReportVisualizer with formatting constants."""
@@ -43,7 +39,7 @@ class ReportVisualizer:
         self.GREEN = REPORT_FORMATTING["GREEN"]
 
     def visualize(self, report: Dict[str, Any], spacing: str = ""):
-        """Recursively print check or checksuite reports in a hierarchical manner.
+        """Recursively print check or checksuite reports.
 
         Parameters
         ----------
@@ -98,7 +94,6 @@ class ReportVisualizer:
         check_name = check_report["check_name"]
         line_str = f"{spacing}{success_symbol} {check_name}"
 
-        # If there's a threshold test, show it
         operator = check_report["operator"]
         value = check_report["value"]
         result_val = check_report["result"]
@@ -106,7 +101,6 @@ class ReportVisualizer:
         metric_name = check_report["metric"]
 
         if operator is not None and value is not None:
-            # Use lookup table instead of multiple if/elif
             op_symbol = OPERATOR_SYMBOLS.get(operator, operator)
             color = self.GREEN if check_report["success"] else self.RED
             result_str = f"{color}{result_val:.5f}{self.END}"

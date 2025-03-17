@@ -1,5 +1,3 @@
-"""Unified metric calculation functionality for all task types."""
-
 from typing import Any, Dict, List, Optional, Union
 
 import torch
@@ -14,7 +12,7 @@ from doleus.utils.data import TaskType
 
 
 class MetricCalculator:
-    """Unified metric calculator for classification and detection tasks."""
+    """Metric calculator for classification and detection tasks."""
 
     def __init__(
         self,
@@ -60,13 +58,6 @@ class MetricCalculator:
         -------
         float
             The calculated metric value.
-
-        Raises
-        ------
-        ValueError
-            If the task type is not supported.
-        RuntimeError
-            If there is an error during metric computation.
         """
         groundtruths_loaded = [self.dataset.groundtruths.get(i) for i in indices]
         predictions_loaded = [self.dataset.predictions.get(i) for i in indices]
@@ -96,13 +87,6 @@ class MetricCalculator:
         -------
         float
             The computed metric value.
-
-        Raises
-        ------
-        RuntimeError
-            If there is an error during metric computation.
-        ValueError
-            If no predictions are provided.
         """
         try:
             gt_tensor = torch.stack(
@@ -117,11 +101,11 @@ class MetricCalculator:
                 raise ValueError("No predictions provided to compute the metric.")
             pred_tensor = torch.stack(pred_list)
 
-            # Set default averaging if not specified.
+            # Set default averaging if not specified
             if "average" not in self.metric_parameters:
                 self.metric_parameters["average"] = "macro"
 
-            # If a specific class is requested, override averaging.
+            # If a specific class is requested, override averaging
             if self.metric_class_id is not None:
                 self.metric_parameters["average"] = "none"
 
@@ -165,11 +149,6 @@ class MetricCalculator:
         -------
         float
             The computed metric value.
-
-        Raises
-        ------
-        RuntimeError
-            If there is an error during metric computation.
         """
         try:
             gt_list = [ann.to_dict() for ann in groundtruths_loaded]
@@ -220,7 +199,7 @@ def calculate_metric(
     metric_parameters: Optional[Dict[str, Any]] = None,
     metric_class: Optional[Union[int, str]] = None,
 ) -> float:
-    """High-level function to compute a metric on a dataset or slice.
+    """Compute a metric on a dataset or slice.
 
     Parameters
     ----------

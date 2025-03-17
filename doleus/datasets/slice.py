@@ -1,17 +1,10 @@
-"""Dataset slicing functionality for model evaluation and analysis."""
-
 from typing import List
 
 from doleus.datasets.base import Doleus
 
 
 class Slice(Doleus):
-    """A subset of a Doleus dataset containing only selected datapoints.
-
-    A Slice maintains a reference to its parent Doleus dataset and provides
-    access to a subset of its datapoints. It inherits all functionality from
-    the parent dataset while operating only on the selected subset.
-    """
+    """A subset of a Doleus dataset containing only selected datapoints."""
 
     def __init__(
         self,

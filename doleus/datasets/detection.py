@@ -1,5 +1,3 @@
-"""Detection dataset classes for model evaluation and analysis."""
-
 from typing import Any, Dict, List
 
 from torch.utils.data import Dataset
@@ -9,7 +7,7 @@ from doleus.utils.data import TaskType
 
 
 class DoleusDetection(Doleus):
-    """Doleus dataset wrapper specialized for detection tasks."""
+    """Dataset wrapper for detection tasks."""
 
     def __init__(
         self,

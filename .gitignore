@@ -21,6 +21,8 @@ stl10_binary.tar.gz
 stl10_binary
 playground/
 tiny-imagenet-200/
+tiny_coco/
 
 *.pth
 *.ipynb
+*.json

@@ -1,15 +1,9 @@
-"""Utility functions and constants for metric calculations."""
-
 from typing import Any, Dict, Optional, Union
 
 import torch
 import torchmetrics
 
 from doleus.datasets import Doleus
-
-# -----------------------------------------------------------------------------
-# Torchmetrics Registry
-# -----------------------------------------------------------------------------
 
 METRIC_FUNCTIONS = {
     "Accuracy": torchmetrics.functional.accuracy,
@@ -38,10 +32,6 @@ METRIC_KEYS = {
     "IntersectionOverUnion": "iou",
 }
 
-# -----------------------------------------------------------------------------
-# Helper Functions
-# -----------------------------------------------------------------------------
-
 
 def parse_metric_class(
     metric_class: Optional[Union[int, str]], dataset: Doleus
@@ -59,13 +49,6 @@ def parse_metric_class(
     -------
     Optional[int]
         The parsed class ID, or None if metric_class was None.
-
-    Raises
-    ------
-    ValueError
-        If label_to_name mapping is not provided or class name not found.
-    TypeError
-        If metric_class is of unsupported type.
     """
     if metric_class is None:
         return None
@@ -81,7 +64,7 @@ def parse_metric_class(
     if isinstance(metric_class, str):
         if metric_class not in dataset.label_to_name.values():
             raise ValueError(
-                f"Class name '{metric_class}' not found in dataset.label_to_name."
+                f"Class name '{metric_class}' not found in label_to_name mapping."
             )
         # Invert the mapping: {id: name} becomes {name: id}
         for k, v in dataset.label_to_name.items():

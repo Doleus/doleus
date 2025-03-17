@@ -1,5 +1,3 @@
-"""Image metadata computation functions for dataset analysis."""
-
 from typing import Any, Dict
 
 import cv2
@@ -7,7 +5,7 @@ import numpy as np
 
 
 def compute_image_metadata(image: np.ndarray) -> Dict[str, Any]:
-    """Compute various metadata attributes from an image.
+    """Compute metadata attributes for a given image.
 
     Parameters
     ----------
@@ -95,7 +93,6 @@ def compute_resolution(image: np.ndarray) -> int:
     return height * width
 
 
-# Registry of available metadata computation functions
 ATTRIBUTE_FUNCTIONS = {
     "brightness": compute_brightness,
     "contrast": compute_contrast,

@@ -1,5 +1,3 @@
-"""Detection annotation classes for storing bounding boxes and object predictions."""
-
 from typing import Optional
 
 from torch import Tensor
@@ -11,8 +9,7 @@ class BoundingBoxes(Annotation):
     """Detection annotation for storing bounding boxes, labels, and scores.
 
     This class handles both ground truth boxes (no scores) and predicted boxes
-    (with scores). The presence of scores determines whether the boxes are
-    treated as predictions or ground truths.
+    (with scores).
     """
 
     def __init__(
@@ -40,7 +37,7 @@ class BoundingBoxes(Annotation):
         super().__init__(datapoint_number)
         self.boxes_xyxy = boxes_xyxy
         self.labels = labels
-        self.scores = scores  # None => ground truths; not None => predictions
+        self.scores = scores
 
     def to_dict(self) -> dict:
         """Convert bounding boxes to a dictionary format.
@@ -48,8 +45,7 @@ class BoundingBoxes(Annotation):
         Returns
         -------
         dict
-            Dictionary with keys 'boxes', 'labels', and optionally 'scores',
-            suitable for detection metrics or post-processing.
+            Dictionary with keys 'boxes', 'labels', and optionally 'scores'.
         """
         output = {
             "boxes": self.boxes_xyxy,

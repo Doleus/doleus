@@ -1,5 +1,3 @@
-"""Base Check and CheckSuite classes for evaluating model performance."""
-
 import json
 from typing import Any, Dict, List, Optional, Union
 
@@ -11,13 +9,7 @@ from doleus.utils.utils import get_current_timestamp
 
 
 class Check:
-    """A Check encapsulates dataset evaluation with optional threshold comparison.
-
-    A Check contains:
-    - Which dataset/slice to evaluate
-    - A metric to compute (classification/detection, etc.)
-    - Optional operator & value for threshold comparison
-    """
+    """A Check encapsulates a specific metric evaluation on a dataset."""
 
     def __init__(
         self,
@@ -57,11 +49,9 @@ class Check:
         self.metric = metric
         self.metric_parameters = metric_parameters or {}
         self.metric_class = metric_class
-
-        # Threshold comparison
         self.operator = operator
         self.value = value
-        self.testing = bool(operator is not None and value is not None)
+        self.testing = operator is not None and value is not None
 
     def run(self, show: bool = False, save_report: bool = False) -> Dict[str, Any]:
         """Execute the check (compute the metric, optionally compare to threshold).
@@ -93,7 +83,7 @@ class Check:
 
         indices = get_original_indices(dataset=self.dataset)
 
-        # 1) Compute metric
+        # Compute metric
         result_value = calculate_metric(
             dataset=root_dataset,
             indices=indices,
@@ -102,13 +92,13 @@ class Check:
             metric_class=self.metric_class,
         )
 
-        # 2) Evaluate threshold if applicable
+        # Evaluate threshold if applicable
         success = None
         if self.testing:
             op_func = OPERATOR_DICT[self.operator]
             success = op_func(result_value, self.value)
 
-        # 3) Build report dict
+        # Build report dict
         if isinstance(self.dataset, Slice):
             ds_id = self.dataset.root_dataset.name
             slice_name = self.dataset.name
@@ -128,7 +118,6 @@ class Check:
             "timestamp": get_current_timestamp(),
         }
 
-        # 4) Optional output
         if show:
             visualize_report(report)
 
@@ -202,12 +191,11 @@ class CheckSuite:
         Dict[str, Any]
             The checksuite report dictionary containing all check results.
         """
-        # Use instance-level show if not overridden
         show = self.show if show is None else show
 
         check_reports = []
         for check in self.checks:
-            report = check.run(show=False)  # Don't show individual reports yet
+            report = check.run(show=False)
             check_reports.append(report)
 
         all_have_thresholds = all(

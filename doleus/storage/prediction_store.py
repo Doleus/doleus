@@ -1,5 +1,3 @@
-"""Centralized storage for model predictions."""
-
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
@@ -20,11 +18,7 @@ class PredictionMetadata:
 
 
 class PredictionStore:
-    """Centralized storage for model predictions across multiple datasets.
-
-    This class provides a way to store, retrieve, and manage model predictions
-    with associated metadata.
-    """
+    """Centralized storage for model predictions across multiple datasets."""
 
     def __init__(self):
         """Initialize an empty prediction store."""

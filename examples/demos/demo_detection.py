@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import torch
 from torch.utils.data import Subset
 from torchvision.datasets import CocoDetection
@@ -9,11 +8,7 @@ from torchvision.models.detection import (FasterRCNN_ResNet50_FPN_V2_Weights,
 from torchvision.ops import box_convert
 
 from doleus.checks import Check, CheckSuite
-# Import Moonwatcher components for evaluation
 from doleus.datasets import DoleusDetection
-
-# TODO: Check if I use the correct transform
-# TODO: Make the dataset downloadable
 
 
 # ================================

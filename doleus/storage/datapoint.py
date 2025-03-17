@@ -1,13 +1,10 @@
-"""Simple container for data samples and their metadata."""
-
 from typing import Any, Dict
 
 
 class Datapoint:
     """Container for a datapoint and its metadata.
 
-    Datapoints are used to store data samples along with their associated
-    metadata for analysis purposes.
+    Datapoints are used to store data samples along with their associated metadata.
     """
 
     def __init__(self, id: int, metadata: Dict[str, Any] = None):
