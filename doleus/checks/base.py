@@ -198,12 +198,10 @@ class CheckSuite:
             report = check.run(show=False)
             check_reports.append(report)
 
-        all_have_thresholds = all(
-            report["success"] is not None for report in check_reports
-        )
-        overall_success = None
-        if all_have_thresholds:
-            overall_success = all(report["success"] for report in check_reports)
+        if not check_reports:
+            overall_success = True  # An empty suite passes by default
+        else:
+            overall_success = all(report["success"] is not False for report in check_reports)
 
         suite_report = {
             "checksuite_name": self.name,
