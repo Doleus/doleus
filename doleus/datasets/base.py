@@ -33,9 +33,9 @@ class Doleus(Dataset):
         name: str,
         task_type: str,
         task: Optional[str] = None,
-        label_to_name: Dict[int, str] = None,
-        metadata: Dict[str, Any] = None,
-        datapoints_metadata: List[Dict[str, Any]] = None,
+        label_to_name: Optional[Dict[int, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        datapoints_metadata: Optional[List[Dict[str, Any]]] = None,
     ):
         """Initialize a dataset wrapper.
 
@@ -49,11 +49,11 @@ class Doleus(Dataset):
             Type of task (e.g., "classification", "detection").
         task : str
             Specific task description.
-        label_to_name : Dict[int, str], optional
+        label_to_name : Optional[Dict[int, str]], optional
             Mapping from class IDs to class names, by default None.
-        metadata : Dict[str, Any], optional
+        metadata : Optional[Dict[str, Any]], optional
             Dataset-level metadata, by default None.
-        datapoints_metadata : List[Dict[str, Any]], optional
+        datapoints_metadata : Optional[List[Dict[str, Any]]], optional
             Per-datapoint metadata, by default None.
         """
         super().__init__()

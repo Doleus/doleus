@@ -8,6 +8,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 
+# TODO: Since we only allow a depth of 1 for dataset wrappers, this function can be made redundant
 def find_root_dataset(dataset: Dataset) -> Dataset:
     """Find the root dataset by iteratively traversing dataset wrappers.
 

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from torch.utils.data import Dataset
 
@@ -13,9 +13,9 @@ class DoleusDetection(Doleus):
         self,
         dataset: Dataset,
         name: str,
-        label_to_name: Dict[int, str] = None,
-        metadata: Dict[str, Any] = None,
-        datapoints_metadata: List[Dict[str, Any]] = None,
+        label_to_name: Optional[Dict[int, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        datapoints_metadata: Optional[List[Dict[str, Any]]] = None,
     ):
         """Initialize a DoleusDetection dataset.
 
@@ -25,11 +25,11 @@ class DoleusDetection(Doleus):
             The PyTorch dataset to wrap.
         name : str
             Name of the dataset.
-        label_to_name : Dict[int, str], optional
+        label_to_name : Optional[Dict[int, str]], optional
             Mapping from class IDs to class names, by default None.
-        metadata : Dict[str, Any], optional
+        metadata : Optional[Dict[str, Any]], optional
             Dataset-level metadata, by default None.
-        datapoints_metadata : List[Dict[str, Any]], optional
+        datapoints_metadata : Optional[List[Dict[str, Any]]], optional
             Per-datapoint metadata, by default None.
         """
         super().__init__(
