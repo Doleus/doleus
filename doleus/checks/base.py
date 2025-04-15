@@ -33,9 +33,9 @@ class Check:
         model_id : str
             The name of the model associated with the predictions.
         metric : str
-            Metric name (e.g. "Accuracy", "mAP", etc.).
+            Metric name.
         metric_parameters : Optional[Dict], optional
-            Optional parameters for torchmetrics, by default None.
+            Optional parameters to pass directly to the corresponding torchmetrics function, by default None.
         target_class : Optional[Union[str, int]], optional
             Optional class name or ID for per-class metrics, by default None.
         operator : Optional[str], optional
@@ -53,13 +53,13 @@ class Check:
         self.value = value
         self.testing = operator is not None and value is not None
 
-    def run(self, show: bool = False, save_report: bool = False) -> Dict[str, Any]:
+    def run(self, show: bool = True, save_report: bool = False) -> Dict[str, Any]:
         """Execute the check (compute the metric, optionally compare to threshold).
 
         Parameters
         ----------
         show : bool, optional
-            If True, prints the check results to console, by default False.
+            If True, prints the check results to console, by default True.
         save_report : bool, optional
             If True, saves the report to a JSON file, by default False.
 
@@ -78,7 +78,7 @@ class Check:
             model_id=self.model_id
         )
 
-        # Add predictions to dataset (temporary)
+        # Add predictions to dataset
         root_dataset._set_predictions(predictions)
 
         indices = get_original_indices(dataset=self.dataset)
@@ -127,36 +127,34 @@ class Check:
 
         return report
 
-    def __call__(self, show=False, save_report=False) -> Dict[str, Any]:
+    def __call__(self, show=True, save_report=False) -> Dict[str, Any]:
         """Convenience call to run the check.
 
         Parameters
         ----------
         show : bool, optional
-            If True, prints the check results to console, by default False.
+            If True, prints the check results to console, by default True.
         save_report : bool, optional
             If True, saves the report to a JSON file, by default False.
 
         Returns
         -------
         Dict[str, Any]
-            The check report dictionary containing results and metadata.
+            The check report dictionary containing the results.
         """
         return self.run(show=show, save_report=save_report)
 
 
 class CheckSuite:
-    """A collection of checks that can be run together.
+    """A collection of checks.
 
-    A CheckSuite produces an aggregate success/fail result if each check uses
-    thresholding.
+    A CheckSuite produces an aggregate success/fail result.
     """
 
     def __init__(
         self,
         name: str,
         checks: List[Check],
-        show: bool = False,
     ):
         """Initialize a CheckSuite instance.
 
@@ -166,23 +164,17 @@ class CheckSuite:
             Name of the checksuite.
         checks : List[Check]
             List of Check objects to be run.
-        show : bool, optional
-            If True, prints each check's result to console, by default False.
         """
         self.name = name
         self.checks = checks
-        self.show = show
 
-    def run_all(
-        self, show: Optional[bool] = None, save_report: bool = False
-    ) -> Dict[str, Any]:
+    def run_all(self, show: bool = True, save_report: bool = False) -> Dict[str, Any]:
         """Run all checks in the suite.
 
         Parameters
         ----------
-        show : Optional[bool], optional
-            If True, prints each check's result to console. If None, uses the
-            instance's show value, by default None.
+        show : bool, optional
+            If True, prints the check results to console, by default True.
         save_report : bool, optional
             If True, saves the report to a JSON file, by default False.
 
@@ -191,15 +183,13 @@ class CheckSuite:
         Dict[str, Any]
             The checksuite report dictionary containing all check results.
         """
-        show = self.show if show is None else show
-
         check_reports = []
         for check in self.checks:
             report = check.run(show=False)
             check_reports.append(report)
 
         if not check_reports:
-            overall_success = True  # An empty suite passes by default
+            overall_success = True
         else:
             overall_success = all(
                 report["success"] is not False for report in check_reports
@@ -223,16 +213,13 @@ class CheckSuite:
 
         return suite_report
 
-    def __call__(
-        self, show: Optional[bool] = None, save_report: bool = False
-    ) -> Dict[str, Any]:
+    def __call__(self, show: bool = True, save_report: bool = False) -> Dict[str, Any]:
         """Convenience call to run all checks in the suite.
 
         Parameters
         ----------
-        show : Optional[bool], optional
-            If True, prints each check's result to console. If None, uses the
-            instance's show value, by default None.
+        show : bool, optional
+            If True, prints the check results to console, by default True.
         save_report : bool, optional
             If True, saves the report to a JSON file, by default False.
 
