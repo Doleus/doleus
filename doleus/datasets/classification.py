@@ -62,7 +62,9 @@ class DoleusClassification(Doleus):
         Extracts labels from the underlying dataset and stores them as Labels.
         """
         self.groundtruths = Annotations()  # Re-initialize
-        for idx in tqdm(range(len(self.dataset)), desc="Building CLASSIFICATION ground truths"):
+        for idx in tqdm(
+            range(len(self.dataset)), desc="Building CLASSIFICATION ground truths"
+        ):
             data = self.dataset[idx]
 
             if len(data) < 2:

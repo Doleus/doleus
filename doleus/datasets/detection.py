@@ -54,7 +54,9 @@ class DoleusDetection(Doleus):
         and stores them as BoundingBoxes.
         """
         self.groundtruths = Annotations()  # Re-initialize
-        for idx in tqdm(range(len(self.dataset)), desc="Building DETECTION ground truths"):
+        for idx in tqdm(
+            range(len(self.dataset)), desc="Building DETECTION ground truths"
+        ):
             data = self.dataset[idx]
 
             if len(data) != 3:
