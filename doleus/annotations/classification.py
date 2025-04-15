@@ -6,10 +6,10 @@ from doleus.annotations.base import Annotation
 
 
 class Labels(Annotation):
-    """Classification annotation for single-label or multi-label tasks.
+    """Annotation for single-label or multi-label classification.
 
-    This class handles both ground truth labels (no scores) and predicted labels
-    (with scores) for classification tasks.
+    This class handles both ground truth labels (no probability scores) and predicted labels
+    (with probability scores) for classification tasks.
     """
 
     def __init__(
@@ -20,15 +20,11 @@ class Labels(Annotation):
         Parameters
         ----------
         datapoint_number : int
-            Unique identifier (index) for the data point.
+            Index for the corresponding data point.
         labels : Tensor
             A 1D integer tensor representing the label(s).
-            For single-label classification, shape might be [1].
-            For multi-label, shape might be [k].
         scores : Optional[Tensor], optional
-            A float tensor representing predicted confidence or probabilities.
-            For single-label, shape might be [num_classes].
-            For multi-label, shape might be [k] or [num_classes], by default None.
+            A float tensor containing predicted probability scores (optional).
         """
         super().__init__(datapoint_number)
         self.labels = labels

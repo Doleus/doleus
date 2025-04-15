@@ -6,10 +6,10 @@ from doleus.annotations.base import Annotation
 
 
 class BoundingBoxes(Annotation):
-    """Detection annotation for storing bounding boxes, labels, and scores.
+    """Annotation for storing bounding boxes and their corresponding labels and scores.
 
-    This class handles both ground truth boxes (no scores) and predicted boxes
-    (with scores).
+    This class handles both ground truth boxes (no probability scores) and predicted boxes
+    (with probability scores).
     """
 
     def __init__(
@@ -24,15 +24,14 @@ class BoundingBoxes(Annotation):
         Parameters
         ----------
         datapoint_number : int
-            Unique identifier (index) for the data point.
+            Index for the corresponding data point.
         boxes_xyxy : Tensor
-            Tensor of shape (num_boxes, 4) with bounding box coordinates
+            A tensor of shape (num_boxes, 4) with bounding box coordinates
             in [x1, y1, x2, y2] format.
         labels : Tensor
-            Integer tensor of shape (num_boxes,) for class labels.
+            An integer tensor of shape (num_boxes,) for class labels.
         scores : Optional[Tensor], optional
-            Float tensor of shape (num_boxes,) for box confidence scores.
-            If None, boxes are treated as ground truths, by default None.
+            A float tensor of shape (num_boxes,) containing predicted probability scores (optional).
         """
         super().__init__(datapoint_number)
         self.boxes_xyxy = boxes_xyxy
@@ -40,7 +39,7 @@ class BoundingBoxes(Annotation):
         self.scores = scores
 
     def to_dict(self) -> dict:
-        """Convert bounding boxes to a dictionary format.
+        """Convert bounding boxes annotation to a dictionary format.
 
         Returns
         -------

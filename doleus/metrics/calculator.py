@@ -59,8 +59,8 @@ class MetricCalculator:
         float
             The calculated metric value.
         """
-        groundtruths_loaded = [self.dataset.groundtruths.get(i) for i in indices]
-        predictions_loaded = [self.dataset.predictions.get(i) for i in indices]
+        groundtruths_loaded = [self.dataset.groundtruths[i] for i in indices]
+        predictions_loaded = [self.dataset.predictions[i] for i in indices]
 
         if self.root_dataset.task_type == TaskType.CLASSIFICATION.value:
             return self._calculate_classification(

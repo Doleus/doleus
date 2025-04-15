@@ -201,7 +201,9 @@ class CheckSuite:
         if not check_reports:
             overall_success = True  # An empty suite passes by default
         else:
-            overall_success = all(report["success"] is not False for report in check_reports)
+            overall_success = all(
+                report["success"] is not False for report in check_reports
+            )
 
         suite_report = {
             "checksuite_name": self.name,
