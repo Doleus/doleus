@@ -3,7 +3,7 @@ from typing import List
 from doleus.datasets.base import Doleus
 
 
-class Slice(Doleus):
+class Slice():
     """A subset of a Doleus dataset containing only selected datapoints."""
 
     def __init__(
