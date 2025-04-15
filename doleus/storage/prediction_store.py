@@ -73,11 +73,6 @@ class PredictionStore:
         -------
         Union[torch.Tensor, List[Dict[str, Any]]]
             The stored predictions
-
-        Raises
-        ------
-        KeyError
-            If no predictions found for the specified dataset or model
         """
         if dataset_id not in self._predictions:
             raise KeyError(f"No predictions found for dataset: {dataset_id}")
@@ -98,10 +93,6 @@ class PredictionStore:
         PredictionMetadata
             Metadata for the specified model
 
-        Raises
-        ------
-        KeyError
-            If no metadata found for the specified model
         """
         if model_id not in self._metadata:
             raise KeyError(f"No metadata found for model: {model_id}")
@@ -119,11 +110,6 @@ class PredictionStore:
         -------
         List[str]
             List of model IDs
-
-        Raises
-        ------
-        KeyError
-            If the specified dataset_id doesn't exist
         """
         if dataset_id:
             if dataset_id not in self._predictions:

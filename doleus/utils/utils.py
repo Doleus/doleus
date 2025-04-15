@@ -14,13 +14,13 @@ def find_root_dataset(dataset: Dataset) -> Dataset:
     Parameters
     ----------
     dataset : Dataset
-        The dataset to find the root of, which may be wrapped in one or more
-        dataset wrappers (e.g., Subset).
+        A dataset which may be wrapped in one or more dataset wrappers
+        (e.g. Subset).
 
     Returns
     -------
     Dataset
-        The root dataset that contains the actual data.
+        The root dataset.
     """
     current = dataset
     while hasattr(current, "dataset"):

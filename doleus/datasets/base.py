@@ -10,7 +10,7 @@ from doleus.analysis.image_metadata import ATTRIBUTE_FUNCTIONS
 from doleus.annotations.base import Annotations
 from doleus.annotations.classification import Labels
 from doleus.annotations.detection import BoundingBoxes
-from doleus.storage.datapoint import Datapoint
+from doleus.storage.metadata_store import MetadataStore
 from doleus.storage.prediction_store import PredictionStore
 from doleus.utils.data import OPERATOR_DICT, TaskType
 from doleus.utils.utils import (find_root_dataset, get_current_timestamp,
@@ -76,7 +76,7 @@ class Doleus(Dataset):
             md = {}
             if datapoints_metadata is not None and i < len(datapoints_metadata):
                 md = datapoints_metadata[i]
-            self.datapoints.append(Datapoint(id=i, metadata=md))
+            self.datapoints.append(MetadataStore(id=i, metadata=md))
 
         self.groundtruths = Annotations()
         self.predictions = Annotations()

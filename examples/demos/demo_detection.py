@@ -97,7 +97,6 @@ with torch.no_grad():
 doleus_dataset = DoleusDetection(
     name="tiny-coco-val-subset",
     dataset=dataset_subset,
-    num_classes=91,  # COCO has 91 classes
 )
 
 # Add predefined metadata ("brightness") to allow slicing based on image properties
