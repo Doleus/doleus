@@ -1,8 +1,8 @@
 from typing import Any, Dict
 
 REPORT_FORMATTING = {
-    "PASS_EMOJI": "✅",  # \u2705
-    "FAIL_EMOJI": "❌",  # \u274C
+    "PASS_EMOJI": "\u2705",
+    "FAIL_EMOJI": "\u274c",
     "BOLD": "\033[1m",
     "END": "\033[0m",
     "UNDERLINE": "\033[4m",
@@ -26,7 +26,7 @@ def visualize_report(report: Dict[str, Any]):
 
 
 class ReportVisualizer:
-    """Helper class to visualize check or checksuite reports."""
+    """Helper class to visualize a check or checksuite report."""
 
     def __init__(self):
         self.pass_emoji = REPORT_FORMATTING["PASS_EMOJI"]
@@ -38,7 +38,7 @@ class ReportVisualizer:
         self.GREEN = REPORT_FORMATTING["GREEN"]
 
     def visualize(self, report: Dict[str, Any], spacing: str = ""):
-        """Recursively print check or checksuite reports.
+        """Print a check or checksuite report.
 
         Parameters
         ----------
@@ -52,56 +52,54 @@ class ReportVisualizer:
         else:
             self._print_check(report, spacing)
 
-    def _print_checksuite(self, suite_report: Dict[str, Any], spacing: str):
+    def _print_checksuite(self, report: Dict[str, Any], spacing: str):
         """Print a checksuite report with nested checks.
 
         Parameters
         ----------
-        suite_report : Dict[str, Any]
+        report : Dict[str, Any]
             The checksuite report dictionary.
         spacing : str
             Indentation spacing for nested reports.
         """
-        # Prepare line for top-level suite
-        success_symbol = self.pass_emoji if suite_report["success"] else self.fail_emoji
-        suite_name = suite_report["checksuite_name"]
+        # Print line for the top-level suite
+        success_symbol = self.pass_emoji if report["success"] else self.fail_emoji
+        suite_name = report["checksuite_name"]
         line_str = f"{spacing}{success_symbol} {suite_name}"
         print(line_str)
 
         # Indent further for sub-checks
         new_spacing = spacing + "    "
-        for sub_report in suite_report["checks"]:
+        for sub_report in report["checks"]:
             self.visualize(sub_report, new_spacing)
 
-    def _print_check(self, check_report: Dict[str, Any], spacing: str):
+    def _print_check(self, report: Dict[str, Any], spacing: str):
         """Print a single check report.
 
         Parameters
         ----------
-        check_report : Dict[str, Any]
+        report : Dict[str, Any]
             The check report dictionary.
         spacing : str
             Indentation spacing for the report.
         """
-        if check_report["success"] is not None:
-            success_symbol = (
-                self.pass_emoji if check_report["success"] else self.fail_emoji
-            )
+        if report["success"] is not None:
+            success_symbol = self.pass_emoji if report["success"] else self.fail_emoji
         else:
             success_symbol = "   "
 
-        check_name = check_report["check_name"]
+        check_name = report["check_name"]
         line_str = f"{spacing}{success_symbol} {check_name}"
 
-        operator = check_report["operator"]
-        value = check_report["value"]
-        result_val = check_report["result"]
-        root_dataset_id = check_report["slice_name"] or check_report["root_dataset_id"]
-        metric_name = check_report["metric"]
+        operator = report["operator"]
+        value = report["value"]
+        result_val = report["result"]
+        root_dataset_id = report["slice_name"] or report["root_dataset_id"]
+        metric_name = report["metric"]
 
         if operator is not None and value is not None:
             op_symbol = OPERATOR_SYMBOLS.get(operator, operator)
-            color = self.GREEN if check_report["success"] else self.RED
+            color = self.GREEN if report["success"] else self.RED
             result_str = f"{color}{result_val:.5f}{self.END}"
             comparison_str = f"{op_symbol} {value}"
 
