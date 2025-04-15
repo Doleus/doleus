@@ -129,15 +129,15 @@ class Doleus(Dataset):
                     raise ValueError(
                         "Expected (image, label) from dataset, got fewer elements."
                     )
-                _, label = data
+                _, labels = data #TODO: Rename to ensure it becomes apparent that this could be one or more labels
 
                 # Convert label to tensor of shape [1] if needed
-                if not isinstance(label, torch.Tensor):
-                    label = torch.tensor(label)
-                if label.dim() == 0:
-                    label = label.unsqueeze(0)
+                if not isinstance(labels, torch.Tensor):
+                    labels = torch.tensor(labels)
+                if labels.dim() == 0:
+                    labels = labels.unsqueeze(0)
 
-                ann = Labels(datapoint_number=idx, labels=label)
+                ann = Labels(datapoint_number=idx, labels=labels)
                 self.groundtruths.add(ann)
 
             elif self.task_type == TaskType.DETECTION.value:
