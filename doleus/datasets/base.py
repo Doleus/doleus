@@ -33,7 +33,6 @@ class Doleus(Dataset):
         name: str,
         task_type: str,
         task: Optional[str] = None,
-        num_classes: int = None,
         label_to_name: Dict[int, str] = None,
         metadata: Dict[str, Any] = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
@@ -50,8 +49,6 @@ class Doleus(Dataset):
             Type of task (e.g., "classification", "detection").
         task : str
             Specific task description.
-        num_classes : int, optional
-            Number of classes in the dataset, by default None.
         label_to_name : Dict[int, str], optional
             Mapping from class IDs to class names, by default None.
         metadata : Dict[str, Any], optional
@@ -64,7 +61,6 @@ class Doleus(Dataset):
         self.dataset = dataset
         self.task_type = task_type
         self.task = task
-        self.num_classes = num_classes
         self.label_to_name = label_to_name
         self.name_to_label = {}
         if label_to_name is not None:

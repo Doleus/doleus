@@ -13,7 +13,6 @@ class DoleusDetection(Doleus):
         self,
         dataset: Dataset,
         name: str,
-        num_classes: int = None,
         label_to_name: Dict[int, str] = None,
         metadata: Dict[str, Any] = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
@@ -26,8 +25,6 @@ class DoleusDetection(Doleus):
             The PyTorch dataset to wrap.
         name : str
             Name of the dataset.
-        num_classes : int, optional
-            Number of classes in the dataset, by default None.
         label_to_name : Dict[int, str], optional
             Mapping from class IDs to class names, by default None.
         metadata : Dict[str, Any], optional
@@ -39,7 +36,6 @@ class DoleusDetection(Doleus):
             dataset=dataset,
             name=name,
             task_type=TaskType.DETECTION.value,
-            num_classes=num_classes,
             label_to_name=label_to_name,
             metadata=metadata,
             datapoints_metadata=datapoints_metadata,

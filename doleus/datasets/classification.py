@@ -14,7 +14,7 @@ class DoleusClassification(Doleus):
         dataset: Dataset,
         name: str,
         task: str,
-        num_classes: int = None,
+        num_classes: int,
         label_to_name: Dict[int, str] = None,
         metadata: Dict[str, Any] = None,
         datapoints_metadata: List[Dict[str, Any]] = None,
@@ -29,8 +29,8 @@ class DoleusClassification(Doleus):
             Name of the dataset.
         task : str
             Specific classification task description.
-        num_classes : int, optional
-            Number of classes in the dataset, by default None.
+        num_classes : int
+            Number of classes in the dataset.
         label_to_name : Dict[int, str], optional
             Mapping from class IDs to class names, by default None.
         metadata : Dict[str, Any], optional
@@ -43,8 +43,8 @@ class DoleusClassification(Doleus):
             name=name,
             task_type=TaskType.CLASSIFICATION.value,
             task=task,
-            num_classes=num_classes,
             label_to_name=label_to_name,
             metadata=metadata,
             datapoints_metadata=datapoints_metadata,
         )
+        self.num_classes = num_classes
