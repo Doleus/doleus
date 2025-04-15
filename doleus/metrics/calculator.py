@@ -5,12 +5,8 @@ import torch
 from doleus.annotations.classification import Labels
 from doleus.annotations.detection import BoundingBoxes
 from doleus.datasets import Doleus, Slice
-from doleus.metrics.metric_utils import (
-    METRIC_FUNCTIONS,
-    METRIC_KEYS,
-    convert_detection_dicts,
-    parse_target_class,
-)
+from doleus.metrics.metric_utils import (METRIC_FUNCTIONS, METRIC_KEYS,
+                                         get_class_id)
 from doleus.utils.data import TaskType
 
 
@@ -47,7 +43,7 @@ class MetricCalculator:
         else:
             self.root_dataset = dataset
 
-        self.target_class_id = parse_target_class(target_class, self.root_dataset)
+        self.target_class_id = get_class_id(target_class, self.root_dataset)
 
     def calculate(self, indices: List[int]) -> float:
         """Calculate the metric for the specified indices.
@@ -156,9 +152,6 @@ class MetricCalculator:
         try:
             gt_list = [ann.to_dict() for ann in groundtruths_loaded]
             pred_list = [ann.to_dict() for ann in predictions_loaded]
-
-            convert_detection_dicts(gt_list)
-            convert_detection_dicts(pred_list)
 
             if self.target_class_id is not None:
                 self.metric_parameters["class_metrics"] = True

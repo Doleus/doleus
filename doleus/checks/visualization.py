@@ -26,10 +26,9 @@ def visualize_report(report: Dict[str, Any]):
 
 
 class ReportVisualizer:
-    """Helper class to print check and checksuite reports to the console."""
+    """Helper class to visualize check or checksuite reports."""
 
     def __init__(self):
-        """Initialize the ReportVisualizer with formatting constants."""
         self.pass_emoji = REPORT_FORMATTING["PASS_EMOJI"]
         self.fail_emoji = REPORT_FORMATTING["FAIL_EMOJI"]
         self.BOLD = REPORT_FORMATTING["BOLD"]

@@ -1,12 +1,9 @@
 import cv2
 import numpy as np
-from moonwatcher.dataset.metadata import (
-    ATTRIBUTE_FUNCTIONS,
-    compute_brightness,
-    compute_contrast,
-    compute_resolution,
-    compute_saturation,
-)
+from moonwatcher.dataset.metadata import (ATTRIBUTE_FUNCTIONS,
+                                          compute_brightness, compute_contrast,
+                                          compute_resolution,
+                                          compute_saturation)
 
 
 def test_compute_brightness():

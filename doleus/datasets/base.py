@@ -13,7 +13,8 @@ from doleus.storage.metadata_store import MetadataStore
 from doleus.storage.prediction_store import PredictionStore
 from doleus.utils.data import OPERATOR_DICT, TaskType
 from doleus.utils.image_metadata import ATTRIBUTE_FUNCTIONS
-from doleus.utils.utils import find_root_dataset, get_current_timestamp, get_raw_image
+from doleus.utils.utils import (find_root_dataset, get_current_timestamp,
+                                get_raw_image)
 
 
 class Doleus(Dataset):

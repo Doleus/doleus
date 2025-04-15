@@ -1,6 +1,5 @@
-from typing import Any, Dict, Optional, Union
+from typing import Optional, Union
 
-import torch
 import torchmetrics
 
 from doleus.datasets import Doleus
@@ -33,29 +32,29 @@ METRIC_KEYS = {
 }
 
 
-def parse_target_class(
+def get_class_id(
     target_class: Optional[Union[int, str]], dataset: Doleus
 ) -> Optional[int]:
-    """Parse and validate the target class parameter.
+    """Get the numerical class ID for a given target class.
 
     Parameters
     ----------
     target_class : Optional[Union[int, str]]
-        The target class to parse. Can be an integer (class ID) or string (class name).
+        The target class to parse. Can be an integer (class ID), string (class name), or None.
     dataset : Doleus
         The dataset containing the label_to_name mapping.
 
     Returns
     -------
     Optional[int]
-        The parsed class ID, or None if target_class was None.
+        The numerical class ID (None if target_class was not specified).
     """
     if target_class is None:
         return None
 
     if dataset.label_to_name is None:
-        raise ValueError(
-            "label_to_name mapping not provided; cannot parse target_class."
+        raise AttributeError(
+            "label_to_name must be provided as a parameter to the Doleus Dataset when specifying a `target_class` in the Check!"
         )
 
     if isinstance(target_class, int):
@@ -63,27 +62,11 @@ def parse_target_class(
 
     if isinstance(target_class, str):
         if target_class not in dataset.label_to_name.values():
-            raise ValueError(
-                f"Class name '{target_class}' not found in label_to_name mapping."
+            raise KeyError(
+                f"Class name '{target_class}' not found in label_to_name mapping. Existing classes are: {list(dataset.label_to_name.values())}"
             )
-        # Invert the mapping: {id: name} becomes {name: id}
         for k, v in dataset.label_to_name.items():
             if v == target_class:
                 return int(k)
 
     raise TypeError(f"Unsupported type for target_class: {type(target_class)}")
-
-
-def convert_detection_dicts(annotations_list: list[Dict[str, Any]]) -> None:
-    """Convert bounding box dictionary values to torch.Tensor format.
-
-    Parameters
-    ----------
-    annotations_list : list[Dict[str, Any]]
-        List of annotation dictionaries containing bounding box information.
-    """
-    for ann in annotations_list:
-        ann["boxes"] = torch.tensor(ann["boxes"], dtype=torch.float32)
-        ann["labels"] = torch.tensor(ann["labels"], dtype=torch.int64)
-        if "scores" in ann:
-            ann["scores"] = torch.tensor(ann["scores"], dtype=torch.float32)
