@@ -33,45 +33,45 @@ METRIC_KEYS = {
 }
 
 
-def parse_metric_class(
-    metric_class: Optional[Union[int, str]], dataset: Doleus
+def parse_target_class(
+    target_class: Optional[Union[int, str]], dataset: Doleus
 ) -> Optional[int]:
-    """Parse and validate the metric class parameter.
+    """Parse and validate the target class parameter.
 
     Parameters
     ----------
-    metric_class : Optional[Union[int, str]]
-        The metric class to parse. Can be an integer (class ID) or string (class name).
+    target_class : Optional[Union[int, str]]
+        The target class to parse. Can be an integer (class ID) or string (class name).
     dataset : Doleus
         The dataset containing the label_to_name mapping.
 
     Returns
     -------
     Optional[int]
-        The parsed class ID, or None if metric_class was None.
+        The parsed class ID, or None if target_class was None.
     """
-    if metric_class is None:
+    if target_class is None:
         return None
 
     if dataset.label_to_name is None:
         raise ValueError(
-            "label_to_name mapping not provided; cannot parse metric_class."
+            "label_to_name mapping not provided; cannot parse target_class."
         )
 
-    if isinstance(metric_class, int):
-        return metric_class
+    if isinstance(target_class, int):
+        return target_class
 
-    if isinstance(metric_class, str):
-        if metric_class not in dataset.label_to_name.values():
+    if isinstance(target_class, str):
+        if target_class not in dataset.label_to_name.values():
             raise ValueError(
-                f"Class name '{metric_class}' not found in label_to_name mapping."
+                f"Class name '{target_class}' not found in label_to_name mapping."
             )
         # Invert the mapping: {id: name} becomes {name: id}
         for k, v in dataset.label_to_name.items():
-            if v == metric_class:
+            if v == target_class:
                 return int(k)
 
-    raise TypeError(f"Unsupported type for metric_class: {type(metric_class)}")
+    raise TypeError(f"Unsupported type for target_class: {type(target_class)}")
 
 
 def convert_detection_dicts(annotations_list: list[Dict[str, Any]]) -> None:

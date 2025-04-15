@@ -18,7 +18,7 @@ class Check:
         model_id: str,
         metric: str,
         metric_parameters: Optional[Dict] = None,
-        metric_class: Optional[Union[str, int]] = None,
+        target_class: Optional[Union[str, int]] = None,
         operator: Optional[str] = None,
         value: Optional[float] = None,
     ):
@@ -36,7 +36,7 @@ class Check:
             Metric name (e.g. "Accuracy", "mAP", etc.).
         metric_parameters : Optional[Dict], optional
             Optional parameters for torchmetrics, by default None.
-        metric_class : Optional[Union[str, int]], optional
+        target_class : Optional[Union[str, int]], optional
             Optional class name or ID for per-class metrics, by default None.
         operator : Optional[str], optional
             For threshold checks (">", ">=", "<", "<=", "==", "!="), by default None.
@@ -48,7 +48,7 @@ class Check:
         self.model_id = model_id
         self.metric = metric
         self.metric_parameters = metric_parameters or {}
-        self.metric_class = metric_class
+        self.target_class = target_class
         self.operator = operator
         self.value = value
         self.testing = operator is not None and value is not None
@@ -89,7 +89,7 @@ class Check:
             indices=indices,
             metric=self.metric,
             metric_parameters=self.metric_parameters,
-            metric_class=self.metric_class,
+            target_class=self.target_class,
         )
 
         # Evaluate threshold if applicable

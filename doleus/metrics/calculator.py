@@ -7,7 +7,7 @@ from doleus.annotations.detection import BoundingBoxes
 from doleus.datasets import Doleus, Slice
 from doleus.metrics.metric_utils import (METRIC_FUNCTIONS, METRIC_KEYS,
                                          convert_detection_dicts,
-                                         parse_metric_class)
+                                         parse_target_class)
 from doleus.utils.data import TaskType
 
 
@@ -19,7 +19,7 @@ class MetricCalculator:
         dataset: Union[Doleus, Slice],
         metric: str,
         metric_parameters: Optional[Dict[str, Any]] = None,
-        metric_class: Optional[Union[int, str]] = None,
+        target_class: Optional[Union[int, str]] = None,
     ):
         """Initialize the metric calculator.
 
@@ -31,20 +31,20 @@ class MetricCalculator:
             Name of the metric to compute.
         metric_parameters : Optional[Dict[str, Any]], optional
             Additional parameters for the metric computation, by default None.
-        metric_class : Optional[Union[int, str]], optional
+        target_class : Optional[Union[int, str]], optional
             Optional class ID or name to compute class-specific metrics.
         """
         self.dataset = dataset
         self.metric = metric
         self.metric_parameters = metric_parameters or {}
-        self.metric_class_raw = metric_class
+        self.target_class_raw = target_class
 
         if isinstance(dataset, Slice):
             self.root_dataset = dataset.root_dataset
         else:
             self.root_dataset = dataset
 
-        self.metric_class_id = parse_metric_class(metric_class, self.root_dataset)
+        self.target_class_id = parse_target_class(target_class, self.root_dataset)
 
     def calculate(self, indices: List[int]) -> float:
         """Calculate the metric for the specified indices.
@@ -106,7 +106,7 @@ class MetricCalculator:
                 self.metric_parameters["average"] = "macro"
 
             # If a specific class is requested, override averaging
-            if self.metric_class_id is not None:
+            if self.target_class_id is not None:
                 self.metric_parameters["average"] = "none"
 
             metric_fn = METRIC_FUNCTIONS[self.metric]
@@ -118,8 +118,8 @@ class MetricCalculator:
                 **self.metric_parameters,
             )
 
-            if self.metric_class_id is not None:
-                metric_value = metric_value[self.metric_class_id]
+            if self.target_class_id is not None:
+                metric_value = metric_value[self.target_class_id]
 
             return (
                 float(metric_value.item())
@@ -157,7 +157,7 @@ class MetricCalculator:
             convert_detection_dicts(gt_list)
             convert_detection_dicts(pred_list)
 
-            if self.metric_class_id is not None:
+            if self.target_class_id is not None:
                 self.metric_parameters["class_metrics"] = True
 
             if self.metric in ["mAP", "mAP_small", "mAP_medium", "mAP_large"]:
@@ -167,11 +167,11 @@ class MetricCalculator:
             metric_fn.update(pred_list, gt_list)
             metric_value_dict = metric_fn.compute()
 
-            if self.metric_class_id is not None:
+            if self.target_class_id is not None:
                 if self.metric in ["mAP", "mAP_small", "mAP_medium", "mAP_large"]:
                     classes = metric_value_dict.get("classes", None)
                     if classes is not None:
-                        index = torch.where(classes == self.metric_class_id)[0]
+                        index = torch.where(classes == self.target_class_id)[0]
                         result = (
                             metric_value_dict["map_per_class"][index].item()
                             if index.numel() > 0
@@ -180,7 +180,7 @@ class MetricCalculator:
                     else:
                         result = 0.0
                 else:
-                    key = f"{METRIC_KEYS[self.metric]}/cl_{self.metric_class_id}"
+                    key = f"{METRIC_KEYS[self.metric]}/cl_{self.target_class_id}"
                     result = metric_value_dict.get(key, 0.0)
             else:
                 result = metric_value_dict[METRIC_KEYS[self.metric]]
@@ -197,7 +197,7 @@ def calculate_metric(
     indices: List[int],
     metric: str,
     metric_parameters: Optional[Dict[str, Any]] = None,
-    metric_class: Optional[Union[int, str]] = None,
+    target_class: Optional[Union[int, str]] = None,
 ) -> float:
     """Compute a metric on a dataset or slice.
 
@@ -211,7 +211,7 @@ def calculate_metric(
         Name of the metric to compute.
     metric_parameters : Optional[Dict[str, Any]], optional
         Additional parameters for the metric computation, by default None.
-    metric_class : Optional[Union[int, str]], optional
+    target_class : Optional[Union[int, str]], optional
         Optional class ID or name to compute class-specific metrics, by default None.
 
     Returns
@@ -223,6 +223,6 @@ def calculate_metric(
         dataset=dataset,
         metric=metric,
         metric_parameters=metric_parameters,
-        metric_class=metric_class,
+        target_class=target_class,
     )
     return calculator.calculate(indices)
