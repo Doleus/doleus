@@ -3,8 +3,10 @@ import os
 import torch
 from torch.utils.data import Subset
 from torchvision.datasets import CocoDetection
-from torchvision.models.detection import (FasterRCNN_ResNet50_FPN_V2_Weights,
-                                          fasterrcnn_resnet50_fpn_v2)
+from torchvision.models.detection import (
+    FasterRCNN_ResNet50_FPN_V2_Weights,
+    fasterrcnn_resnet50_fpn_v2,
+)
 from torchvision.ops import box_convert
 
 from doleus.checks import Check, CheckSuite

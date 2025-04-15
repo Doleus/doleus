@@ -6,15 +6,14 @@ from PIL import Image
 from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
-from doleus.analysis.image_metadata import ATTRIBUTE_FUNCTIONS
 from doleus.annotations.base import Annotations
 from doleus.annotations.classification import Labels
 from doleus.annotations.detection import BoundingBoxes
 from doleus.storage.metadata_store import MetadataStore
 from doleus.storage.prediction_store import PredictionStore
 from doleus.utils.data import OPERATOR_DICT, TaskType
-from doleus.utils.utils import (find_root_dataset, get_current_timestamp,
-                                get_raw_image)
+from doleus.utils.image_metadata import ATTRIBUTE_FUNCTIONS
+from doleus.utils.utils import find_root_dataset, get_current_timestamp, get_raw_image
 
 
 class Doleus(Dataset):

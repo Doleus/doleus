@@ -5,9 +5,12 @@ import torch
 from doleus.annotations.classification import Labels
 from doleus.annotations.detection import BoundingBoxes
 from doleus.datasets import Doleus, Slice
-from doleus.metrics.metric_utils import (METRIC_FUNCTIONS, METRIC_KEYS,
-                                         convert_detection_dicts,
-                                         parse_target_class)
+from doleus.metrics.metric_utils import (
+    METRIC_FUNCTIONS,
+    METRIC_KEYS,
+    convert_detection_dicts,
+    parse_target_class,
+)
 from doleus.utils.data import TaskType
 
 
