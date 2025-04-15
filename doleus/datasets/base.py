@@ -1,4 +1,5 @@
 from typing import Any, Callable, Dict, List, Optional, Union
+from abc import ABC, abstractmethod
 
 import numpy as np
 import torch
@@ -13,11 +14,10 @@ from doleus.storage.metadata_store import MetadataStore
 from doleus.storage.prediction_store import PredictionStore
 from doleus.utils.data import OPERATOR_DICT, TaskType
 from doleus.utils.image_metadata import ATTRIBUTE_FUNCTIONS
-from doleus.utils.utils import (find_root_dataset, get_current_timestamp,
-                                get_raw_image)
+from doleus.utils.utils import find_root_dataset, get_current_timestamp, get_raw_image
 
 
-class Doleus(Dataset):
+class Doleus(Dataset, ABC):
     """Dataset wrapper for Doleus.
 
     This class provides functionality for:
@@ -33,9 +33,9 @@ class Doleus(Dataset):
         name: str,
         task_type: str,
         task: Optional[str] = None,
-        label_to_name: Optional[Dict[int, str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        datapoints_metadata: Optional[List[Dict[str, Any]]] = None,
+        label_to_name: Dict[int, str] = None,
+        metadata: Dict[str, Any] = None,
+        datapoints_metadata: List[Dict[str, Any]] = None,
     ):
         """Initialize a dataset wrapper.
 
@@ -49,11 +49,11 @@ class Doleus(Dataset):
             Type of task (e.g., "classification", "detection").
         task : str
             Specific task description.
-        label_to_name : Optional[Dict[int, str]], optional
+        label_to_name : Dict[int, str], optional
             Mapping from class IDs to class names, by default None.
-        metadata : Optional[Dict[str, Any]], optional
+        metadata : Dict[str, Any], optional
             Dataset-level metadata, by default None.
-        datapoints_metadata : Optional[List[Dict[str, Any]]], optional
+        datapoints_metadata : List[Dict[str, Any]], optional
             Per-datapoint metadata, by default None.
         """
         super().__init__()
@@ -127,13 +127,11 @@ class Doleus(Dataset):
             if self.task_type == TaskType.CLASSIFICATION.value:
                 if len(data) < 2:
                     raise ValueError(
-                        "Expected (image, label) from dataset, got fewer elements."
+                        "Expected (image, label(s)) from dataset, got fewer elements."
                     )
-                _, labels = (
-                    data  # TODO: Rename to ensure it becomes apparent that this could be one or more labels
-                )
+                _, labels = data
 
-                # Convert label to tensor of shape [1] if needed
+                # Convert label(s) to tensor of shape [1] if needed
                 if not isinstance(labels, torch.Tensor):
                     labels = torch.tensor(labels)
                 if labels.dim() == 0:
@@ -165,90 +163,16 @@ class Doleus(Dataset):
     # -------------------------------------------------------------------------
     #                           PREDICTIONS
     # -------------------------------------------------------------------------
+    @abstractmethod
     def _set_predictions(self, predictions: Any):
-        """Add model predictions to the dataset.
+        """Add model predictions specific to the task type.
 
         Parameters
         ----------
         predictions : Any
-            For classification tasks:
-                torch.Tensor of shape [N, num_classes] (logits/probabilities) or
-                [N] (label indices).
-            For detection tasks:
-                List of length N, where each element is a dictionary containing
-                'boxes' (M,4), 'labels' (M,), and 'scores' (M,) tensors.
+            Task-specific prediction format. See subclasses for details.
         """
-        self.predictions = Annotations()
-
-        # Classification case: predictions is typically [N, num_classes]
-        if self.task_type == TaskType.CLASSIFICATION.value:
-            if not isinstance(predictions, torch.Tensor):
-                raise TypeError(
-                    "For classification, predictions must be a torch.Tensor."
-                )
-
-            num_samples = predictions.shape[0]
-            if num_samples != len(self.dataset):
-                raise ValueError(
-                    "Mismatch between predictions size and dataset length."
-                )
-
-            # If shape is [N], assume these are predicted labels (class IDs)
-            # If shape is [N, C], assume these are logits or probabilities
-            if predictions.dim() == 1:
-                for i in range(num_samples):
-                    label_val = predictions[i].unsqueeze(0)
-                    ann = Labels(datapoint_number=i, labels=label_val, scores=None)
-                    self.predictions.add(ann)
-
-            elif predictions.dim() == 2:
-                # logits or probabilities of shape [N, C]
-                # currently we always interpret them as logits, with an argmax
-                for i in range(num_samples):
-                    logit_row = predictions[i]
-                    # "labels" is the top-1 predicted label
-                    pred_label = logit_row.argmax(dim=0).unsqueeze(0)
-                    scores = torch.softmax(logit_row, dim=0)
-                    ann = Labels(
-                        datapoint_number=i,
-                        labels=pred_label,  # shape [1]
-                        scores=scores,  # shape [num_classes]
-                    )
-                    self.predictions.add(ann)
-
-            else:
-                raise ValueError("Classification predictions must be 1D or 2D tensor.")
-
-        # Detection case: predictions is typically a list of length N
-        elif self.task_type == TaskType.DETECTION.value:
-            if not isinstance(predictions, list):
-                raise TypeError(
-                    "For detection, predictions must be a list of length N."
-                )
-
-            if len(predictions) != len(self.dataset):
-                raise ValueError(
-                    "Mismatch between predictions list and dataset length."
-                )
-
-            # Each element should look like {"boxes": (M,4), "labels": (M,), "scores": (M,)}
-            for i, pred_dict in enumerate(
-                tqdm(predictions, desc="Building DETECTION predictions")
-            ):
-                boxes_xyxy = torch.tensor(pred_dict["boxes"], dtype=torch.float32)
-                labels = torch.tensor(pred_dict["labels"], dtype=torch.long)
-                scores = torch.tensor(pred_dict["scores"], dtype=torch.float32)
-
-                ann = BoundingBoxes(
-                    datapoint_number=i,
-                    boxes_xyxy=boxes_xyxy,
-                    labels=labels,
-                    scores=scores,
-                )
-                self.predictions.add(ann)
-
-        else:
-            raise ValueError(f"Unsupported task_type={self.task_type}.")
+        pass
 
     def add_model_predictions(
         self,
