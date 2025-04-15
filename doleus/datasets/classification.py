@@ -76,7 +76,9 @@ class DoleusClassification(Doleus):
         # If shape is [N, C], assume these are logits or probabilities
         # TODO: Add support for multi-label predictions
         if predictions.dim() == 1:
-            for i in tqdm(range(num_samples), desc="Building CLASSIFICATION predictions"):
+            for i in tqdm(
+                range(num_samples), desc="Building CLASSIFICATION predictions"
+            ):
                 label_val = predictions[i].unsqueeze(0)
                 ann = Labels(datapoint_number=i, labels=label_val, scores=None)
                 self.predictions.add(ann)
@@ -84,7 +86,9 @@ class DoleusClassification(Doleus):
         elif predictions.dim() == 2:
             # logits or probabilities of shape [N, C]
             # currently we always interpret them as logits, with an argmax
-            for i in tqdm(range(num_samples), desc="Building CLASSIFICATION predictions"):
+            for i in tqdm(
+                range(num_samples), desc="Building CLASSIFICATION predictions"
+            ):
                 logit_row = predictions[i]
                 # "labels" is the top-1 predicted label
                 pred_label = logit_row.argmax(dim=0).unsqueeze(0)

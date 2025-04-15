@@ -1,6 +1,7 @@
 from doleus.utils.data import OPERATOR_DICT, DataType, Task, TaskType
 from doleus.utils.image_metadata import ATTRIBUTE_FUNCTIONS
-from doleus.utils.utils import find_root_dataset, get_current_timestamp, get_raw_image
+from doleus.utils.utils import (find_root_dataset, get_current_timestamp,
+                                get_raw_image)
 
 __all__ = [
     "DataType",
