@@ -29,7 +29,7 @@ class MetricCalculator:
         metric : str
             Name of the metric to compute.
         metric_parameters : Optional[Dict[str, Any]], optional
-            Additional parameters for the metric computation, by default None.
+            Optional parameters to pass directly to the corresponding torchmetrics function, by default None.
         target_class : Optional[Union[int, str]], optional
             Optional class ID or name to compute class-specific metrics.
         """
@@ -37,12 +37,9 @@ class MetricCalculator:
         self.metric = metric
         self.metric_parameters = metric_parameters or {}
         self.target_class_raw = target_class
-
-        if isinstance(dataset, Slice):
-            self.root_dataset = dataset.root_dataset
-        else:
-            self.root_dataset = dataset
-
+        self.root_dataset = (
+            dataset.root_dataset if isinstance(dataset, Slice) else dataset
+        )
         self.target_class_id = get_class_id(target_class, self.root_dataset)
 
     def calculate(self, indices: List[int]) -> float:
