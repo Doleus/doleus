@@ -75,7 +75,7 @@ class Check:
             else self.dataset
         )
         predictions = root_dataset.prediction_store.get_predictions(
-            dataset_id=root_dataset.name, model_id=self.model_id
+            model_id=self.model_id
         )
 
         # Add predictions to dataset (temporary)

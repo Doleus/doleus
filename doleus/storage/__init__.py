@@ -1,4 +1,4 @@
 from doleus.storage.metadata_store import MetadataStore
-from doleus.storage.prediction_store import PredictionMetadata, PredictionStore
+from doleus.storage.prediction_store import PredictionStore
 
-__all__ = ["MetadataStore", "PredictionStore", "PredictionMetadata"]
+__all__ = ["MetadataStore", "PredictionStore"]
