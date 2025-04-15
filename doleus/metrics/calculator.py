@@ -55,20 +55,18 @@ class MetricCalculator:
         float
             The calculated metric value.
         """
-        groundtruths_loaded = [self.dataset.groundtruths[i] for i in indices]
-        predictions_loaded = [self.dataset.predictions[i] for i in indices]
+        groundtruths = [self.dataset.groundtruths[i] for i in indices]
+        predictions = [self.dataset.predictions[i] for i in indices]
 
         if self.root_dataset.task_type == TaskType.CLASSIFICATION.value:
-            return self._calculate_classification(
-                groundtruths_loaded, predictions_loaded
-            )
+            return self._calculate_classification(groundtruths, predictions)
         elif self.root_dataset.task_type == TaskType.DETECTION.value:
-            return self._calculate_detection(groundtruths_loaded, predictions_loaded)
+            return self._calculate_detection(groundtruths, predictions)
         else:
             raise ValueError(f"Unsupported task type: {self.root_dataset.task_type}")
 
     def _calculate_classification(
-        self, groundtruths_loaded: List[Labels], predictions_loaded: List[Labels]
+        self, groundtruths: List[Labels], predictions: List[Labels]
     ) -> float:
         """Compute a classification metric.
 
@@ -85,13 +83,11 @@ class MetricCalculator:
             The computed metric value.
         """
         try:
-            gt_tensor = torch.stack(
-                [ann.labels.squeeze() for ann in groundtruths_loaded]
-            )
+            gt_tensor = torch.stack([ann.labels.squeeze() for ann in groundtruths])
 
             pred_list = [
                 ann.scores if ann.scores is not None else ann.labels.squeeze()
-                for ann in predictions_loaded
+                for ann in predictions
             ]
             if not pred_list:
                 raise ValueError("No predictions provided to compute the metric.")
@@ -129,8 +125,8 @@ class MetricCalculator:
 
     def _calculate_detection(
         self,
-        groundtruths_loaded: List[BoundingBoxes],
-        predictions_loaded: List[BoundingBoxes],
+        groundtruths: List[BoundingBoxes],
+        predictions: List[BoundingBoxes],
     ) -> float:
         """Compute a detection metric.
 
@@ -147,8 +143,8 @@ class MetricCalculator:
             The computed metric value.
         """
         try:
-            gt_list = [ann.to_dict() for ann in groundtruths_loaded]
-            pred_list = [ann.to_dict() for ann in predictions_loaded]
+            gt_list = [ann.to_dict() for ann in groundtruths]
+            pred_list = [ann.to_dict() for ann in predictions]
 
             if self.target_class_id is not None:
                 self.metric_parameters["class_metrics"] = True
@@ -203,7 +199,7 @@ def calculate_metric(
     metric : str
         Name of the metric to compute.
     metric_parameters : Optional[Dict[str, Any]], optional
-        Additional parameters for the metric computation, by default None.
+        Optional parameters to pass directly to the corresponding torchmetrics function, by default None.
     target_class : Optional[Union[int, str]], optional
         Optional class ID or name to compute class-specific metrics, by default None.
 
