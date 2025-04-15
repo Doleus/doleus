@@ -115,51 +115,14 @@ class Doleus(Dataset, ABC):
         else:
             return local_idx
 
+    @abstractmethod
     def add_groundtruths(self):
-        """Add ground truth annotations from the underlying dataset.
+        """Add ground truth annotations specific to the task type.
 
-        This method loops over every item in the underlying dataset and converts
-        the outputs into custom annotation objects (Labels or BoundingBoxes).
+        This method should loop over the underlying dataset and populate
+        self.groundtruths with the appropriate Annotation objects.
         """
-        self.groundtruths = Annotations()
-        for idx in range(len(self.dataset)):
-            data = self.dataset[idx]
-
-            if self.task_type == TaskType.CLASSIFICATION.value:
-                if len(data) < 2:
-                    raise ValueError(
-                        "Expected (image, label(s)) from dataset, got fewer elements."
-                    )
-                _, labels = data
-
-                # Convert label(s) to tensor of shape [1] if needed
-                if not isinstance(labels, torch.Tensor):
-                    labels = torch.tensor(labels)
-                if labels.dim() == 0:
-                    labels = labels.unsqueeze(0)
-
-                ann = Labels(datapoint_number=idx, labels=labels)
-                self.groundtruths.add(ann)
-
-            elif self.task_type == TaskType.DETECTION.value:
-                if len(data) != 3:
-                    raise ValueError(
-                        "Expected (image, bounding_boxes, labels) for detection."
-                    )
-                _, bounding_boxes, labels = data
-
-                if not isinstance(bounding_boxes, torch.Tensor):
-                    bounding_boxes = torch.tensor(bounding_boxes, dtype=torch.float32)
-                if not isinstance(labels, torch.Tensor):
-                    labels = torch.tensor(labels, dtype=torch.long)
-
-                ann = BoundingBoxes(
-                    datapoint_number=idx, boxes_xyxy=bounding_boxes, labels=labels
-                )
-                self.groundtruths.add(ann)
-
-            else:
-                raise ValueError(f"Unsupported task_type={self.task_type}.")
+        pass
 
     # -------------------------------------------------------------------------
     #                           PREDICTIONS

@@ -53,6 +53,32 @@ class DoleusClassification(Doleus):
             datapoints_metadata=datapoints_metadata,
         )
         self.num_classes = num_classes
+        # Call add_groundtruths after super().__init__ has initialized self.groundtruths
+        self.add_groundtruths()
+
+    def add_groundtruths(self):
+        """Add classification ground truth annotations.
+
+        Extracts labels from the underlying dataset and stores them as Labels.
+        """
+        self.groundtruths = Annotations()  # Re-initialize
+        for idx in tqdm(range(len(self.dataset)), desc="Building CLASSIFICATION ground truths"):
+            data = self.dataset[idx]
+
+            if len(data) < 2:
+                raise ValueError(
+                    f"Expected (image, label(s)) from dataset at index {idx}, got {len(data)} elements."
+                )
+            _, labels = data
+
+            # Convert label(s) to tensor of shape [N] if needed
+            if not isinstance(labels, torch.Tensor):
+                labels = torch.tensor(labels)
+            if labels.dim() == 0:
+                labels = labels.unsqueeze(0)
+
+            ann = Labels(datapoint_number=idx, labels=labels)
+            self.groundtruths.add(ann)
 
     def _set_predictions(self, predictions: Tensor):
         """Add classification model predictions.
