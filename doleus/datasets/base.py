@@ -267,7 +267,6 @@ class Doleus(Dataset):
         """
         self.prediction_store.add_predictions(
             predictions=predictions,
-            dataset_id=self.name,
             model_id=model_id,
         )
 

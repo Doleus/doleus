@@ -85,7 +85,7 @@ def test_model_predictions(moonwatcher_dataset):
 
     # Verify predictions were added correctly
     stored_preds = moonwatcher_dataset.prediction_store.get_predictions(
-        dataset_name=moonwatcher_dataset.name, model_id=model_id
+        model_id=model_id
     )
     assert torch.allclose(stored_preds, predictions)
 
