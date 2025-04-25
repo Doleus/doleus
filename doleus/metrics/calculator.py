@@ -2,12 +2,10 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from doleus.annotations.classification import Labels
-from doleus.annotations.detection import BoundingBoxes
-from doleus.datasets import Doleus, Slice
-from doleus.metrics.metric_utils import (METRIC_FUNCTIONS, METRIC_KEYS,
-                                         get_class_id)
-from doleus.utils.data import TaskType
+from doleus.annotations import BoundingBoxes, Labels
+from doleus.datasets import Doleus
+from doleus.metrics.metric_utils import METRIC_FUNCTIONS, METRIC_KEYS, get_class_id
+from doleus.utils import TaskType
 
 
 class MetricCalculator:
@@ -15,7 +13,7 @@ class MetricCalculator:
 
     def __init__(
         self,
-        dataset: Union[Doleus, Slice],
+        dataset: Doleus,
         metric: str,
         metric_parameters: Optional[Dict[str, Any]] = None,
         target_class: Optional[Union[int, str]] = None,
@@ -24,8 +22,8 @@ class MetricCalculator:
 
         Parameters
         ----------
-        dataset : Union[Doleus, Slice]
-            The dataset or slice to compute metrics on.
+        dataset : Doleus
+            The dataset to compute metrics on.
         metric : str
             Name of the metric to compute.
         metric_parameters : Optional[Dict[str, Any]], optional
@@ -37,9 +35,7 @@ class MetricCalculator:
         self.metric = metric
         self.metric_parameters = metric_parameters or {}
         self.target_class_raw = target_class
-        self.root_dataset = (
-            dataset.root_dataset if isinstance(dataset, Slice) else dataset
-        )
+        self.root_dataset = dataset
         self.target_class_id = get_class_id(target_class, self.root_dataset)
 
     def calculate(self, indices: List[int]) -> float:
@@ -55,7 +51,7 @@ class MetricCalculator:
         float
             The calculated metric value.
         """
-        groundtruths = [self.dataset.groundtruths[i] for i in indices]
+        groundtruths = [self.dataset.groundtruth_store.get(i) for i in indices]
         predictions = [self.dataset.predictions[i] for i in indices]
 
         if self.root_dataset.task_type == TaskType.CLASSIFICATION.value:
@@ -182,18 +178,18 @@ class MetricCalculator:
 
 
 def calculate_metric(
-    dataset: Union[Doleus, Slice],
+    dataset: Doleus,
     indices: List[int],
     metric: str,
     metric_parameters: Optional[Dict[str, Any]] = None,
     target_class: Optional[Union[int, str]] = None,
 ) -> float:
-    """Compute a metric on a dataset or slice.
+    """Compute a metric on a dataset.
 
     Parameters
     ----------
-    dataset : Union[Doleus, Slice]
-        The dataset or slice to compute metrics on.
+    dataset : Doleus
+        The dataset to compute metrics on.
     indices : List[int]
         List of indices to compute the metric for.
     metric : str

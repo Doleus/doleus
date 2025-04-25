@@ -1,5 +1,5 @@
 import datetime
-from typing import Union
+from typing import List, Union
 
 import numpy as np
 import pytz
@@ -55,6 +55,29 @@ def get_raw_image(
     image = data[0]
     root_dataset.transform = original_transform
     return image
+
+
+def to_numpy_image(root_dataset: Dataset, index: int) -> np.ndarray:
+    """Convert an image to a numpy array format.
+
+    Parameters
+    ----------
+    root_dataset : Dataset
+        The root dataset to get the image from.
+    index : int
+        Index of the image in the dataset.
+
+    Returns
+    -------
+    np.ndarray
+        The image as a numpy array in BGR format.
+    """
+    raw_image = get_raw_image(root_dataset, index)
+    if isinstance(raw_image, torch.Tensor):
+        raw_image = (raw_image.permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
+    elif isinstance(raw_image, Image.Image):
+        raw_image = np.array(raw_image)
+    return raw_image
 
 
 def get_current_timestamp() -> str:

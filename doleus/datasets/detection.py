@@ -1,13 +1,12 @@
 from typing import Any, Dict, List, Optional
 
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
-from doleus.annotations.base import Annotations
-from doleus.annotations.detection import BoundingBoxes
+from doleus.annotations import Annotations, BoundingBoxes
 from doleus.datasets.base import Doleus
-from doleus.utils.data import TaskType
+from doleus.utils import TaskType
 
 
 class DoleusDetection(Doleus):
@@ -19,7 +18,7 @@ class DoleusDetection(Doleus):
         name: str,
         label_to_name: Optional[Dict[int, str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        datapoints_metadata: Optional[List[Dict[str, Any]]] = None,
+        per_datapoint_metadata: Optional[List[Dict[str, Any]]] = None,
     ):
         """Initialize a DoleusDetection dataset.
 
@@ -33,7 +32,7 @@ class DoleusDetection(Doleus):
             Mapping from class IDs to class names, by default None.
         metadata : Optional[Dict[str, Any]], optional
             Dataset-level metadata, by default None.
-        datapoints_metadata : Optional[List[Dict[str, Any]]], optional
+        per_datapoint_metadata : Optional[List[Dict[str, Any]]], optional
             Per-datapoint metadata, by default None.
         """
         super().__init__(
@@ -42,18 +41,16 @@ class DoleusDetection(Doleus):
             task_type=TaskType.DETECTION.value,
             label_to_name=label_to_name,
             metadata=metadata,
-            datapoints_metadata=datapoints_metadata,
+            per_datapoint_metadata=per_datapoint_metadata,
         )
-        # Call add_groundtruths after super().__init__ has initialized self.groundtruths
-        self.add_groundtruths()
 
-    def add_groundtruths(self):
-        """Add detection ground truth annotations.
+    def process_groundtruths(self):
+        """Process and store detection ground truth annotations.
 
         Extracts bounding boxes and labels from the underlying dataset
         and stores them as BoundingBoxes.
         """
-        self.groundtruths = Annotations()  # Re-initialize
+        groundtruths = Annotations()
         for idx in tqdm(
             range(len(self.dataset)), desc="Building DETECTION ground truths"
         ):
@@ -73,7 +70,9 @@ class DoleusDetection(Doleus):
             ann = BoundingBoxes(
                 datapoint_number=idx, boxes_xyxy=bounding_boxes, labels=labels
             )
-            self.groundtruths.add(ann)
+            groundtruths.add(ann)
+
+        self.groundtruth_store.add_groundtruths(groundtruths)
 
     def _set_predictions(self, predictions: List[Dict[str, Any]]):
         """Add detection model predictions.
@@ -109,3 +108,22 @@ class DoleusDetection(Doleus):
                 scores=scores,
             )
             self.predictions.add(ann)
+
+    def _create_new_instance(self, dataset, indices):
+        subset = Subset(dataset, indices)
+        new_metadata = [self.metadata_store.metadata[i] for i in indices]
+        new_instance = DoleusDetection(
+            dataset=subset,
+            name=f"{self.name}_subset",
+            label_to_name=self.label_to_name,
+            metadata=self.metadata.copy(),
+            per_datapoint_metadata=new_metadata,
+        )
+
+        # Copy model predictions if available
+        for model_id in self.prediction_store.predictions:
+            preds = self.prediction_store.predictions[model_id]
+            sliced_preds = [preds[i] for i in indices]
+            new_instance.prediction_store.add_predictions(sliced_preds, model_id)
+
+        return new_instance

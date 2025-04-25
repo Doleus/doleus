@@ -2,13 +2,12 @@ from typing import Any, Dict, List, Optional
 
 import torch
 from torch import Tensor
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
-from doleus.annotations.base import Annotations
-from doleus.annotations.classification import Labels
+from doleus.annotations import Annotations, Labels
 from doleus.datasets.base import Doleus
-from doleus.utils.data import TaskType
+from doleus.utils import TaskType
 
 
 class DoleusClassification(Doleus):
@@ -22,7 +21,7 @@ class DoleusClassification(Doleus):
         num_classes: int,
         label_to_name: Optional[Dict[int, str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        datapoints_metadata: Optional[List[Dict[str, Any]]] = None,
+        per_datapoint_metadata: Optional[List[Dict[str, Any]]] = None,
     ):
         """Initialize a DoleusClassification dataset.
 
@@ -40,9 +39,10 @@ class DoleusClassification(Doleus):
             Mapping from class IDs to class names, by default None.
         metadata : Optional[Dict[str, Any]], optional
             Dataset-level metadata, by default None.
-        datapoints_metadata : Optional[List[Dict[str, Any]]], optional
+        per_datapoint_metadata : Optional[List[Dict[str, Any]]], optional
             Per-datapoint metadata, by default None.
         """
+        self.num_classes = num_classes
         super().__init__(
             dataset=dataset,
             name=name,
@@ -50,18 +50,15 @@ class DoleusClassification(Doleus):
             task=task,
             label_to_name=label_to_name,
             metadata=metadata,
-            datapoints_metadata=datapoints_metadata,
+            per_datapoint_metadata=per_datapoint_metadata,
         )
-        self.num_classes = num_classes
-        # Call add_groundtruths after super().__init__ has initialized self.groundtruths
-        self.add_groundtruths()
 
-    def add_groundtruths(self):
-        """Add classification ground truth annotations.
+    def process_groundtruths(self):
+        """Process and store classification ground truth annotations.
 
         Extracts labels from the underlying dataset and stores them as Labels.
         """
-        self.groundtruths = Annotations()  # Re-initialize
+        groundtruths = Annotations()
         for idx in tqdm(
             range(len(self.dataset)), desc="Building CLASSIFICATION ground truths"
         ):
@@ -80,7 +77,9 @@ class DoleusClassification(Doleus):
                 labels = labels.unsqueeze(0)
 
             ann = Labels(datapoint_number=idx, labels=labels)
-            self.groundtruths.add(ann)
+            groundtruths.add(ann)
+
+        self.groundtruth_store.add_groundtruths(groundtruths)
 
     def _set_predictions(self, predictions: Tensor):
         """Add classification model predictions.
@@ -130,3 +129,24 @@ class DoleusClassification(Doleus):
 
         else:
             raise ValueError("Classification predictions must be 1D or 2D tensor.")
+
+    def _create_new_instance(self, dataset, indices):
+        subset = Subset(dataset, indices)
+        new_metadata = [self.metadata_store.metadata[i] for i in indices]
+        new_instance = DoleusClassification(
+            dataset=subset,
+            name=f"{self.name}_subset",
+            task=self.task,
+            num_classes=self.num_classes,
+            label_to_name=self.label_to_name,
+            metadata=self.metadata.copy(),
+            per_datapoint_metadata=new_metadata,
+        )
+
+        # Copy model predictions if available
+        for model_id in self.prediction_store.predictions:
+            preds = self.prediction_store.predictions[model_id]
+            sliced_preds = preds[indices]
+            new_instance.prediction_store.add_predictions(sliced_preds, model_id)
+
+        return new_instance

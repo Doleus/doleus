@@ -3,19 +3,18 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from PIL import Image
 from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
-from doleus.annotations.base import Annotations
-from doleus.annotations.classification import Labels
-from doleus.annotations.detection import BoundingBoxes
-from doleus.storage.metadata_store import MetadataStore
-from doleus.storage.prediction_store import PredictionStore
-from doleus.utils.data import OPERATOR_DICT, TaskType
-from doleus.utils.image_metadata import ATTRIBUTE_FUNCTIONS
-from doleus.utils.utils import (find_root_dataset, get_current_timestamp,
-                                get_raw_image)
+from doleus.annotations import Annotations, BoundingBoxes, Labels
+from doleus.storage import GroundTruthStore, MetadataStore, PredictionStore
+from doleus.utils import (
+    ATTRIBUTE_FUNCTIONS,
+    OPERATOR_DICT,
+    find_root_dataset,
+    get_current_timestamp,
+    to_numpy_image,
+)
 
 
 class Doleus(Dataset, ABC):
@@ -36,7 +35,7 @@ class Doleus(Dataset, ABC):
         task: Optional[str] = None,
         label_to_name: Dict[int, str] = None,
         metadata: Dict[str, Any] = None,
-        datapoints_metadata: List[Dict[str, Any]] = None,
+        per_datapoint_metadata: List[Dict[str, Any]] = None,
     ):
         """Initialize a dataset wrapper.
 
@@ -54,7 +53,7 @@ class Doleus(Dataset, ABC):
             Mapping from class IDs to class names, by default None.
         metadata : Dict[str, Any], optional
             Dataset-level metadata, by default None.
-        datapoints_metadata : List[Dict[str, Any]], optional
+        per_datapoint_metadata : List[Dict[str, Any]], optional
             Per-datapoint metadata, by default None.
         """
         super().__init__()
@@ -71,18 +70,12 @@ class Doleus(Dataset, ABC):
         self.metadata = metadata if metadata is not None else {}
         self.metadata["_timestamp"] = get_current_timestamp()
 
-        # Initialize datapoints with metadata
-        self.datapoints = []
-        for i in range(len(self.dataset)):
-            md = {}
-            if datapoints_metadata is not None and i < len(datapoints_metadata):
-                md = datapoints_metadata[i]
-            self.datapoints.append(MetadataStore(id=i, metadata=md))
-
-        self.groundtruths = Annotations()
-        self.predictions = Annotations()
-        self.add_groundtruths()
+        self.groundtruth_store = GroundTruthStore()
         self.prediction_store = PredictionStore()
+        self.metadata_store = MetadataStore(per_datapoint_metadata)
+
+        # Process and add groundtruths
+        self.process_groundtruths()
 
     def __len__(self):
         return len(self.dataset)
@@ -92,6 +85,10 @@ class Doleus(Dataset, ABC):
 
     def __getattr__(self, attr):
         return getattr(self.dataset, attr)
+
+    @abstractmethod
+    def _create_new_instance(self, dataset, indices):
+        pass
 
     # -------------------------------------------------------------------------
     #                           GROUND TRUTHS
@@ -110,17 +107,18 @@ class Doleus(Dataset, ABC):
         int
             The corresponding index in the root dataset.
         """
-        if isinstance(self.dataset, Subset):
-            return self.dataset.indices[local_idx]
-        else:
-            return local_idx
+        return (
+            self.dataset.indices[local_idx]
+            if isinstance(self.dataset, Subset)
+            else local_idx
+        )
 
     @abstractmethod
-    def add_groundtruths(self):
-        """Add ground truth annotations specific to the task type.
+    def process_groundtruths(self):
+        """Process and store ground truth annotations specific to the task type.
 
         This method should loop over the underlying dataset and populate
-        self.groundtruths with the appropriate Annotation objects.
+        groundtruth_store with the appropriate Annotation objects.
         """
         pass
 
@@ -163,29 +161,6 @@ class Doleus(Dataset, ABC):
     # -------------------------------------------------------------------------
     #                            METADATA METHODS
     # -------------------------------------------------------------------------
-    def _prepare_image_for_metadata(self, index: int) -> np.ndarray:
-        """Prepare an image for metadata computation.
-
-        Parameters
-        ----------
-        index : int
-            Index of the image in the dataset.
-
-        Returns
-        -------
-        np.ndarray
-            The image as a numpy array in BGR format.
-        """
-        root_dataset = find_root_dataset(self.dataset)
-        raw_image = get_raw_image(root_dataset, index)
-        if isinstance(raw_image, torch.Tensor):
-            raw_image = (raw_image.permute(1, 2, 0).cpu().numpy() * 255).astype(
-                np.uint8
-            )
-        elif isinstance(raw_image, Image.Image):
-            raw_image = np.array(raw_image)
-        return raw_image
-
     def add_metadata(
         self, metadata_key: str, value_or_func: Union[Any, Callable[[np.ndarray], Any]]
     ):
@@ -205,12 +180,13 @@ class Doleus(Dataset, ABC):
             range(len(self.dataset)), desc=f"Adding metadata '{metadata_key}'"
         ):
             if is_func:
-                image = self._prepare_image_for_metadata(i)
+                root_dataset = find_root_dataset(self.dataset)
+                image = to_numpy_image(root_dataset, i)
                 value = value_or_func(image)
             else:
                 value = value_or_func
 
-            self.datapoints[i].add_metadata(metadata_key, value)
+            self.metadata_store.add_metadata(i, metadata_key, value)
 
     def add_metadata_from_list(self, metadata_list: List[Dict[str, Any]]):
         """Add metadata from a list of dictionaries.
@@ -229,9 +205,10 @@ class Doleus(Dataset, ABC):
         for i, md_dict in enumerate(
             tqdm(metadata_list, desc="Adding metadata from list")
         ):
-            if i >= len(self.datapoints):
+            if i >= len(self.dataset):
                 break
-            self.datapoints[i].metadata.update(md_dict)
+            for key, value in md_dict.items():
+                self.metadata_store.add_metadata(i, key, value)
 
     def add_predefined_metadata(self, keys: Union[str, List[str]]):
         """Add predefined metadata using functions from ATTRIBUTE_FUNCTIONS.
@@ -269,14 +246,14 @@ class Doleus(Dataset, ABC):
         ValueError
             If DataFrame has more rows than dataset has datapoints.
         """
-        if len(df) > len(self.datapoints):
+        if len(df) > len(self.dataset):
             raise ValueError(
-                f"DataFrame has {len(df)} rows but dataset only has {len(self.datapoints)} datapoints"
+                f"DataFrame has {len(df)} rows but dataset only has {len(self.dataset)} datapoints"
             )
 
         for idx, row in enumerate(df.itertuples(index=False)):
-            metadata_dict = {col: val for col, val in zip(df.columns, row)}
-            self.datapoints[idx].metadata.update(metadata_dict)
+            for col, val in zip(df.columns, row):
+                self.metadata_store.add_metadata(idx, col, val)
 
     # -------------------------------------------------------------------------
     #                                SLICING
@@ -342,16 +319,13 @@ class Doleus(Dataset, ABC):
         op_func = OPERATOR_DICT[operator_str]
         indices = [
             i
-            for i, dp in enumerate(self.datapoints)
-            if op_func(dp.get_metadata(metadata_key), threshold)
+            for i in range(len(self.dataset))
+            if op_func(self.metadata_store.get_metadata(i, metadata_key), threshold)
         ]
         if slice_name is None:
             slice_name = self._generate_filename(metadata_key, operator_str, threshold)
 
-        # TODO: avoid circular import without this workaround
-        from doleus.datasets.slice import Slice
-
-        return Slice(name=slice_name, root_dataset=self, indices=indices)
+        return self._create_new_instance(self.dataset, indices)
 
     def slice_by_percentile(
         self,
@@ -379,20 +353,20 @@ class Doleus(Dataset, ABC):
             A new slice containing datapoints that meet the percentile criteria.
         """
         op_func = OPERATOR_DICT[operator_str]
-        values = [dp.get_metadata(metadata_key) for dp in self.datapoints]
+        values = [
+            self.metadata_store.get_metadata(i, metadata_key)
+            for i in range(len(self.dataset))
+        ]
         threshold = np.percentile(values, percentile)
         indices = [
             i
-            for i, dp in enumerate(self.datapoints)
-            if op_func(dp.get_metadata(metadata_key), threshold)
+            for i in range(len(self.dataset))
+            if op_func(self.metadata_store.get_metadata(i, metadata_key), threshold)
         ]
         if slice_name is None:
             slice_name = self._generate_filename(metadata_key, operator_str, percentile)
 
-        # TODO: avoid circular import without this workaround
-        from doleus.datasets.slice import Slice
-
-        return Slice(name=slice_name, root_dataset=self, indices=indices)
+        return self._create_new_instance(self.dataset, indices)
 
     def slice_by_metadata_value(
         self,
@@ -419,14 +393,10 @@ class Doleus(Dataset, ABC):
         Slice
             A new slice containing datapoints that match the target value.
         """
-
-        if not any(metadata_key in dp.metadata for dp in self.datapoints):
-            raise KeyError(f"Metadata key '{metadata_key}' not found in any datapoint")
-
         indices = []
-        for i, dp in enumerate(self.datapoints):
+        for i in range(len(self.dataset)):
             try:
-                value = dp.get_metadata(metadata_key)
+                value = self.metadata_store.get_metadata(i, metadata_key)
 
                 # Handle different types of comparisons
                 if isinstance(target_value, float) and isinstance(value, (int, float)):
@@ -459,10 +429,7 @@ class Doleus(Dataset, ABC):
             value_str = "".join(c if c.isalnum() else "_" for c in value_str)
             slice_name = f"{metadata_key}_{value_str}"
 
-        # TODO: avoid circular import without this workaround
-        from doleus.datasets.slice import Slice
-
-        return Slice(name=slice_name, root_dataset=self, indices=indices)
+        return self._create_new_instance(self.dataset, indices)
 
     def slice_by_groundtruth_class(
         self,
@@ -513,15 +480,14 @@ class Doleus(Dataset, ABC):
 
         # Collect matching original indices
         filtered_indices = []
-        for datapoint in self.datapoints:
-            original_idx = datapoint.id
-            ground_truth = self.groundtruths.get(original_idx)
+        for i in range(len(self.dataset)):
+            ground_truth = self.groundtruth_store.get(i)
 
             if isinstance(ground_truth, (Labels, BoundingBoxes)):
                 if torch.any(
                     torch.isin(ground_truth.labels, torch.tensor(list(class_id_set)))
                 ):
-                    filtered_indices.append(original_idx)
+                    filtered_indices.append(i)
 
         # Generate default name if needed
         if not slice_name:
@@ -529,37 +495,4 @@ class Doleus(Dataset, ABC):
             class_str = "_".join(map(str, target_classes))[:50]  # Limit length
             slice_name = f"gt_class_{class_str}"
 
-        # TODO: avoid circular import without this workaround
-        from doleus.datasets.slice import Slice
-
-        return Slice(name=slice_name, root_dataset=self, indices=filtered_indices)
-
-
-def get_original_indices(dataset: Union["Doleus", "Slice"]) -> List[int]:
-    """Get the original dataset indices for a dataset or slice.
-
-    Parameters
-    ----------
-    dataset : Union[Doleus, Slice]
-        The dataset or slice to get indices for.
-
-    Returns
-    -------
-    List[int]
-        List of indices in the original dataset.
-
-    Raises
-    ------
-    TypeError
-        If the dataset is not a Doleus or Slice instance.
-    """
-    # TODO: avoid circular import without this workaround
-    from doleus.datasets.slice import Slice
-
-    if isinstance(dataset, Slice):
-        parent_indices = get_original_indices(dataset.root_dataset)
-        return [parent_indices[i] for i in dataset.indices]
-    elif isinstance(dataset, Doleus):
-        return list(range(len(dataset.dataset)))
-    else:
-        raise TypeError("Unsupported dataset type for get_original_indices.")
+        return self._create_new_instance(self.dataset, filtered_indices)

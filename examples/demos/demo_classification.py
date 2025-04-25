@@ -9,7 +9,7 @@ from torchvision import datasets, transforms
 
 from doleus.checks import Check, CheckSuite
 from doleus.datasets import DoleusClassification
-from doleus.utils.data import Task
+from doleus.utils import Task
 
 # Step 1) Download the Dataset
 data_dir = "./tiny-imagenet-200"

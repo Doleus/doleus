@@ -2,10 +2,9 @@ import json
 from typing import Any, Dict, List, Optional, Union
 
 from doleus.checks.visualization import visualize_report
-from doleus.datasets import Doleus, Slice, get_original_indices
+from doleus.datasets import Doleus
 from doleus.metrics import calculate_metric
-from doleus.utils.data import OPERATOR_DICT
-from doleus.utils.utils import get_current_timestamp
+from doleus.utils import OPERATOR_DICT, get_current_timestamp
 
 
 class Check:
@@ -14,7 +13,7 @@ class Check:
     def __init__(
         self,
         name: str,
-        dataset: Union[Doleus, Slice],
+        dataset: Doleus,
         model_id: str,
         metric: str,
         metric_parameters: Optional[Dict] = None,
@@ -28,8 +27,8 @@ class Check:
         ----------
         name : str
             Name of the check.
-        dataset : Union[Doleus, Slice]
-            The dataset or slice on which to evaluate.
+        dataset : Doleus
+            The dataset on which to evaluate.
         model_id : str
             The name of the model associated with the predictions.
         metric : str
@@ -69,11 +68,7 @@ class Check:
             The check report dictionary containing results and metadata.
         """
         # Get root dataset and predictions
-        root_dataset = (
-            self.dataset.root_dataset
-            if isinstance(self.dataset, Slice)
-            else self.dataset
-        )
+        root_dataset = self.dataset
         predictions = root_dataset.prediction_store.get_predictions(
             model_id=self.model_id
         )
@@ -81,7 +76,7 @@ class Check:
         # Add predictions to dataset
         root_dataset._set_predictions(predictions)
 
-        indices = get_original_indices(dataset=self.dataset)
+        indices = list(range(len(root_dataset.dataset)))
 
         # Compute metric
         result_value = calculate_metric(
@@ -99,13 +94,15 @@ class Check:
             success = op_func(result_value, self.value)
 
         # Build report dict
-        if isinstance(self.dataset, Slice):
-            ds_id = self.dataset.root_dataset.name
-            slice_name = self.dataset.name
-        else:
-            ds_id = self.dataset.name
-            slice_name = None
+        # if isinstance(self.dataset, Slice):
+        #     ds_id = self.dataset.root_dataset.name
+        #     slice_name = self.dataset.name
+        # else:
+        #     ds_id = self.dataset.name
+        #     slice_name = None
 
+        ds_id = self.dataset.name
+        slice_name = None
         report = {
             "check_name": self.name,
             "root_dataset_id": ds_id,
