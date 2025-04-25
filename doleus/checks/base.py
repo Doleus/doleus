@@ -74,7 +74,7 @@ class Check:
         )
 
         # Add predictions to dataset
-        root_dataset._set_predictions(predictions)
+        root_dataset.process_predictions(predictions)
 
         indices = list(range(len(root_dataset.dataset)))
 

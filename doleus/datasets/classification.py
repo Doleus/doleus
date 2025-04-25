@@ -81,8 +81,8 @@ class DoleusClassification(Doleus):
 
         self.groundtruth_store.add_groundtruths(groundtruths)
 
-    def _set_predictions(self, predictions: Tensor):
-        """Add classification model predictions.
+    def process_predictions(self, predictions: Tensor):
+        """Process and store classification model predictions.
 
         Parameters
         ----------

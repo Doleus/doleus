@@ -126,8 +126,8 @@ class Doleus(Dataset, ABC):
     #                           PREDICTIONS
     # -------------------------------------------------------------------------
     @abstractmethod
-    def _set_predictions(self, predictions: Any):
-        """Add model predictions specific to the task type.
+    def process_predictions(self, predictions: Any):
+        """Process and store model predictions specific to the task type.
 
         Parameters
         ----------

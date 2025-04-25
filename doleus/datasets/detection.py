@@ -74,8 +74,8 @@ class DoleusDetection(Doleus):
 
         self.groundtruth_store.add_groundtruths(groundtruths)
 
-    def _set_predictions(self, predictions: List[Dict[str, Any]]):
-        """Add detection model predictions.
+    def process_predictions(self, predictions: List[Dict[str, Any]]):
+        """Process and store detection model predictions.
 
         Parameters
         ----------
