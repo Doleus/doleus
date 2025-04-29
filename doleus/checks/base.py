@@ -89,19 +89,11 @@ class Check:
             op_func = OPERATOR_DICT[self.operator]
             success = op_func(result_value, self.value)
 
-        # Build report dict
-        # if isinstance(self.dataset, Slice):
-        #     ds_id = self.dataset.root_dataset.name
-        #     slice_name = self.dataset.name
-        # else:
-        #     ds_id = self.dataset.name
-        #     slice_name = None
-
         ds_id = self.dataset.name
         slice_name = None
         report = {
             "check_name": self.name,
-            "root_dataset_id": ds_id,
+            "dataset_id": ds_id,
             "slice_name": slice_name,
             "metric": self.metric,
             "operator": self.operator,

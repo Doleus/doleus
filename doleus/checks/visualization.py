@@ -94,7 +94,7 @@ class ReportVisualizer:
         operator = report["operator"]
         value = report["value"]
         result_val = report["result"]
-        root_dataset_id = report["slice_name"] or report["root_dataset_id"]
+        dataset_id = report["dataset_id"]
         metric_name = report["metric"]
 
         if operator is not None and value is not None:
@@ -103,11 +103,11 @@ class ReportVisualizer:
             result_str = f"{color}{result_val:.5f}{self.END}"
             comparison_str = f"{op_symbol} {value}"
 
-            appendix = f"({metric_name} on {root_dataset_id})"
+            appendix = f"({metric_name} on {dataset_id})"
             print(
                 f"{line_str.ljust(40)} {result_str} {comparison_str.ljust(10)} {appendix}"
             )
         else:
             print(
-                f"{line_str.ljust(40)} {result_val:.5f}  ({metric_name} on {root_dataset_id})"
+                f"{line_str.ljust(40)} {result_val:.5f}  ({metric_name} on {dataset_id})"
             )

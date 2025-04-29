@@ -39,8 +39,7 @@ class MetricCalculator:
         self.predictions = predictions
         self.metric_parameters = metric_parameters or {}
         self.target_class_raw = target_class
-        self.root_dataset = dataset
-        self.target_class_id = get_class_id(target_class, self.root_dataset)
+        self.target_class_id = get_class_id(target_class, self.dataset)
         self.groundtruths = [
             self.dataset.groundtruth_store.get(i) for i in range(len(self.dataset))
         ]
@@ -53,12 +52,12 @@ class MetricCalculator:
         float
             The calculated metric value.
         """
-        if self.root_dataset.task_type == TaskType.CLASSIFICATION.value:
+        if self.dataset.task_type == TaskType.CLASSIFICATION.value:
             return self._calculate_classification(self.groundtruths, self.predictions)
-        elif self.root_dataset.task_type == TaskType.DETECTION.value:
+        elif self.dataset.task_type == TaskType.DETECTION.value:
             return self._calculate_detection(self.groundtruths, self.predictions)
         else:
-            raise ValueError(f"Unsupported task type: {self.root_dataset.task_type}")
+            raise ValueError(f"Unsupported task type: {self.dataset.task_type}")
 
     def _calculate_classification(
         self, groundtruths: List[Labels], predictions: List[Labels]
@@ -100,8 +99,8 @@ class MetricCalculator:
             metric_value = metric_fn(
                 pred_tensor,
                 gt_tensor,
-                task=self.root_dataset.task,
-                num_classes=self.root_dataset.num_classes,
+                task=self.dataset.task,
+                num_classes=self.dataset.num_classes,
                 **self.metric_parameters,
             )
 
