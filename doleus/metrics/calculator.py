@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from doleus.annotations import BoundingBoxes, Labels
+from doleus.annotations import Annotations, BoundingBoxes, Labels
 from doleus.datasets import Doleus
 from doleus.metrics.metric_utils import METRIC_FUNCTIONS, METRIC_KEYS, get_class_id
 from doleus.utils import TaskType
@@ -15,6 +15,7 @@ class MetricCalculator:
         self,
         dataset: Doleus,
         metric: str,
+        predictions: Annotations,
         metric_parameters: Optional[Dict[str, Any]] = None,
         target_class: Optional[Union[int, str]] = None,
     ):
@@ -26,6 +27,8 @@ class MetricCalculator:
             The dataset to compute metrics on.
         metric : str
             Name of the metric to compute.
+        predictions : Annotations
+            The predictions to evaluate against ground truths.
         metric_parameters : Optional[Dict[str, Any]], optional
             Optional parameters to pass directly to the corresponding torchmetrics function, by default None.
         target_class : Optional[Union[int, str]], optional
@@ -33,31 +36,27 @@ class MetricCalculator:
         """
         self.dataset = dataset
         self.metric = metric
+        self.predictions = predictions
         self.metric_parameters = metric_parameters or {}
         self.target_class_raw = target_class
         self.root_dataset = dataset
         self.target_class_id = get_class_id(target_class, self.root_dataset)
+        self.groundtruths = [
+            self.dataset.groundtruth_store.get(i) for i in range(len(self.dataset))
+        ]
 
-    def calculate(self, indices: List[int]) -> float:
-        """Calculate the metric for the specified indices.
-
-        Parameters
-        ----------
-        indices : List[int]
-            List of indices to calculate the metric for.
+    def calculate(self) -> float:
+        """Calculate the metric.
 
         Returns
         -------
         float
             The calculated metric value.
         """
-        groundtruths = [self.dataset.groundtruth_store.get(i) for i in indices]
-        predictions = [self.dataset.predictions[i] for i in indices]
-
         if self.root_dataset.task_type == TaskType.CLASSIFICATION.value:
-            return self._calculate_classification(groundtruths, predictions)
+            return self._calculate_classification(self.groundtruths, self.predictions)
         elif self.root_dataset.task_type == TaskType.DETECTION.value:
-            return self._calculate_detection(groundtruths, predictions)
+            return self._calculate_detection(self.groundtruths, self.predictions)
         else:
             raise ValueError(f"Unsupported task type: {self.root_dataset.task_type}")
 
@@ -179,8 +178,8 @@ class MetricCalculator:
 
 def calculate_metric(
     dataset: Doleus,
-    indices: List[int],
     metric: str,
+    predictions: Annotations,
     metric_parameters: Optional[Dict[str, Any]] = None,
     target_class: Optional[Union[int, str]] = None,
 ) -> float:
@@ -190,10 +189,10 @@ def calculate_metric(
     ----------
     dataset : Doleus
         The dataset to compute metrics on.
-    indices : List[int]
-        List of indices to compute the metric for.
     metric : str
         Name of the metric to compute.
+    predictions : Annotations
+        The predictions to evaluate against ground truths.
     metric_parameters : Optional[Dict[str, Any]], optional
         Optional parameters to pass directly to the corresponding torchmetrics function, by default None.
     target_class : Optional[Union[int, str]], optional
@@ -207,7 +206,8 @@ def calculate_metric(
     calculator = MetricCalculator(
         dataset=dataset,
         metric=metric,
+        predictions=predictions,
         metric_parameters=metric_parameters,
         target_class=target_class,
     )
-    return calculator.calculate(indices)
+    return calculator.calculate()

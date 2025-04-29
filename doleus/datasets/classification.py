@@ -53,83 +53,6 @@ class DoleusClassification(Doleus):
             per_datapoint_metadata=per_datapoint_metadata,
         )
 
-    def process_groundtruths(self):
-        """Process and store classification ground truth annotations.
-
-        Extracts labels from the underlying dataset and stores them as Labels.
-        """
-        groundtruths = Annotations()
-        for idx in tqdm(
-            range(len(self.dataset)), desc="Building CLASSIFICATION ground truths"
-        ):
-            data = self.dataset[idx]
-
-            if len(data) < 2:
-                raise ValueError(
-                    f"Expected (image, label(s)) from dataset at index {idx}, got {len(data)} elements."
-                )
-            _, labels = data
-
-            # Convert label(s) to tensor of shape [N] if needed
-            if not isinstance(labels, torch.Tensor):
-                labels = torch.tensor(labels)
-            if labels.dim() == 0:
-                labels = labels.unsqueeze(0)
-
-            ann = Labels(datapoint_number=idx, labels=labels)
-            groundtruths.add(ann)
-
-        self.groundtruth_store.add_groundtruths(groundtruths)
-
-    def process_predictions(self, predictions: Tensor):
-        """Process and store classification model predictions.
-
-        Parameters
-        ----------
-        predictions : Tensor
-            Tensor of shape [N, num_classes] (logits/probabilities) or
-            [N] (label indices).
-        """
-        self.predictions = Annotations()
-
-        if not isinstance(predictions, torch.Tensor):
-            raise TypeError("For classification, predictions must be a torch.Tensor.")
-
-        num_samples = predictions.shape[0]
-        if num_samples != len(self.dataset):
-            raise ValueError("Mismatch between predictions size and dataset length.")
-
-        # If shape is [N], assume these are predicted labels (class IDs)
-        # If shape is [N, C], assume these are logits or probabilities
-        # TODO: Add support for multi-label predictions
-        if predictions.dim() == 1:
-            for i in tqdm(
-                range(num_samples), desc="Building CLASSIFICATION predictions"
-            ):
-                label_val = predictions[i].unsqueeze(0)
-                ann = Labels(datapoint_number=i, labels=label_val, scores=None)
-                self.predictions.add(ann)
-
-        elif predictions.dim() == 2:
-            # logits or probabilities of shape [N, C]
-            # currently we always interpret them as logits, with an argmax
-            for i in tqdm(
-                range(num_samples), desc="Building CLASSIFICATION predictions"
-            ):
-                logit_row = predictions[i]
-                # "labels" is the top-1 predicted label
-                pred_label = logit_row.argmax(dim=0).unsqueeze(0)
-                scores = torch.softmax(logit_row, dim=0)
-                ann = Labels(
-                    datapoint_number=i,
-                    labels=pred_label,  # shape [1]
-                    scores=scores,  # shape [self.num_classes]
-                )
-                self.predictions.add(ann)
-
-        else:
-            raise ValueError("Classification predictions must be 1D or 2D tensor.")
-
     def _create_new_instance(self, dataset, indices):
         subset = Subset(dataset, indices)
         new_metadata = [self.metadata_store.metadata[i] for i in indices]
@@ -143,10 +66,13 @@ class DoleusClassification(Doleus):
             per_datapoint_metadata=new_metadata,
         )
 
-        # Copy model predictions if available
         for model_id in self.prediction_store.predictions:
             preds = self.prediction_store.predictions[model_id]
-            sliced_preds = preds[indices]
+            sliced_preds = (
+                preds[indices]
+                if isinstance(preds, torch.Tensor)
+                else [preds[i] for i in indices]
+            )
             new_instance.prediction_store.add_predictions(sliced_preds, model_id)
 
         return new_instance

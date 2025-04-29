@@ -67,22 +67,18 @@ class Check:
         Dict[str, Any]
             The check report dictionary containing results and metadata.
         """
-        # Get root dataset and predictions
-        root_dataset = self.dataset
-        predictions = root_dataset.prediction_store.get_predictions(
-            model_id=self.model_id
-        )
-
-        # Add predictions to dataset
-        root_dataset.process_predictions(predictions)
-
-        indices = list(range(len(root_dataset.dataset)))
+        predictions = [
+            self.dataset.prediction_store.get(
+                model_id=self.model_id, datapoint_number=i
+            )
+            for i in range(len(self.dataset))
+        ]
 
         # Compute metric
         result_value = calculate_metric(
-            dataset=root_dataset,
-            indices=indices,
+            dataset=self.dataset,
             metric=self.metric,
+            predictions=predictions,
             metric_parameters=self.metric_parameters,
             target_class=self.target_class,
         )

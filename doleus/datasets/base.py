@@ -70,12 +70,9 @@ class Doleus(Dataset, ABC):
         self.metadata = metadata if metadata is not None else {}
         self.metadata["_timestamp"] = get_current_timestamp()
 
-        self.groundtruth_store = GroundTruthStore()
-        self.prediction_store = PredictionStore()
-        self.metadata_store = MetadataStore(per_datapoint_metadata)
-
-        # Process and add groundtruths
-        self.process_groundtruths()
+        self.groundtruth_store = GroundTruthStore(task_type=task_type, dataset=dataset)
+        self.prediction_store = PredictionStore(task_type=task_type)
+        self.metadata_store = MetadataStore(metadata=per_datapoint_metadata)
 
     def __len__(self):
         return len(self.dataset)
@@ -88,52 +85,6 @@ class Doleus(Dataset, ABC):
 
     @abstractmethod
     def _create_new_instance(self, dataset, indices):
-        pass
-
-    # -------------------------------------------------------------------------
-    #                           GROUND TRUTHS
-    # -------------------------------------------------------------------------
-
-    def _get_root_index(self, local_idx: int) -> int:
-        """Get the corresponding index in the root dataset for a slice index.
-
-        Parameters
-        ----------
-        local_idx : int
-            The local index in the current slice.
-
-        Returns
-        -------
-        int
-            The corresponding index in the root dataset.
-        """
-        return (
-            self.dataset.indices[local_idx]
-            if isinstance(self.dataset, Subset)
-            else local_idx
-        )
-
-    @abstractmethod
-    def process_groundtruths(self):
-        """Process and store ground truth annotations specific to the task type.
-
-        This method should loop over the underlying dataset and populate
-        groundtruth_store with the appropriate Annotation objects.
-        """
-        pass
-
-    # -------------------------------------------------------------------------
-    #                           PREDICTIONS
-    # -------------------------------------------------------------------------
-    @abstractmethod
-    def process_predictions(self, predictions: Any):
-        """Process and store model predictions specific to the task type.
-
-        Parameters
-        ----------
-        predictions : Any
-            Task-specific prediction format. See subclasses for details.
-        """
         pass
 
     def add_model_predictions(
