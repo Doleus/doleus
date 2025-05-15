@@ -107,6 +107,7 @@ class Doleus(Dataset, ABC):
         self.prediction_store.add_predictions(
             predictions=predictions,
             model_id=model_id,
+            task=self.task,
         )
 
     # -------------------------------------------------------------------------
@@ -161,27 +162,23 @@ class Doleus(Dataset, ABC):
             for key, value in md_dict.items():
                 self.metadata_store.add_metadata(i, key, value)
 
-    def add_predefined_metadata(self, keys: Union[str, List[str]]):
+    def add_predefined_metadata(self, attribute: str) -> None:
         """Add predefined metadata using functions from ATTRIBUTE_FUNCTIONS.
 
         Parameters
         ----------
-        keys : Union[str, List[str]]
-            Name(s) of predefined metadata function(s) to compute and add.
+        attribute : str
+            Name of predefined metadata function to compute and add.
             Available keys are defined in ATTRIBUTE_FUNCTIONS.
 
         Raises
         ------
         ValueError
-            If any key is not found in ATTRIBUTE_FUNCTIONS.
+            If attribute is not found in ATTRIBUTE_FUNCTIONS.
         """
-        if isinstance(keys, str):
-            keys = [keys]
-
-        for key in keys:
-            if key not in ATTRIBUTE_FUNCTIONS:
-                raise ValueError(f"Unknown predefined metadata key: {key}")
-            self.add_metadata(key, ATTRIBUTE_FUNCTIONS[key])
+        if attribute not in ATTRIBUTE_FUNCTIONS:
+            raise ValueError(f"Unknown predefined metadata attribute: {attribute}")
+        self.add_metadata(attribute, ATTRIBUTE_FUNCTIONS[attribute])
 
     def add_metadata_from_dataframe(self, df):
         """Add metadata from a pandas DataFrame.
