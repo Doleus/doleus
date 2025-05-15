@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 class MetadataStore:
@@ -8,15 +8,26 @@ class MetadataStore:
     Each datapoint's metadata is stored as a dictionary at the corresponding index.
     """
 
-    def __init__(self, metadata: List[Dict[str, Any]] = None):
+    def __init__(
+        self, num_datapoints: int, metadata: Optional[List[Dict[str, Any]]] = None
+    ):
         """Initialize a metadata container.
 
         Parameters
         ----------
-        metadata : List[Dict[str, Any]], optional
+        num_datapoints : int
+            Number of datapoints to initialize the metadata list with.
+        metadata : Optional[List[Dict[str, Any]]], optional
             List of metadata dictionaries, one per datapoint, by default None.
         """
-        self.metadata: List[Dict[str, Any]] = metadata or []
+        if metadata:
+            if len(metadata) > num_datapoints:
+                raise ValueError(
+                    f"Metadata list has {len(metadata)} entries but dataset has {num_datapoints} datapoints"
+                )
+            self.metadata = metadata
+        else:
+            self.metadata = [{} for _ in range(num_datapoints)]
 
     def add_metadata(self, datapoint_idx: int, key: str, value: Any) -> None:
         """Add or update a metadata value for a specific datapoint.
@@ -30,8 +41,6 @@ class MetadataStore:
         value : Any
             Value to associate with the key.
         """
-        while len(self.metadata) <= datapoint_idx:
-            self.metadata.append({})
         self.metadata[datapoint_idx][key] = value
 
     def get_metadata(self, datapoint_idx: int, key: str) -> Any:
@@ -49,31 +58,20 @@ class MetadataStore:
         Any
             The metadata value.
 
-        Raises
-        ------
-        KeyError
-            If the metadata key doesn't exist for the datapoint.
-        IndexError
-            If the datapoint index is out of range.
         """
         return self.metadata[datapoint_idx][key]
 
-    def get_all_metadata(self, datapoint_idx: int) -> Dict[str, Any]:
-        """Get all metadata for a specific datapoint.
+    def get_subset(self, indices: List[int]) -> List[Dict[str, Any]]:
+        """Get a subset of metadata based on indices.
 
         Parameters
         ----------
-        datapoint_idx : int
-            Index of the datapoint to get metadata for.
+        indices : List[int]
+            List of indices to get metadata for.
 
         Returns
         -------
-        Dict[str, Any]
-            Dictionary of all metadata for the datapoint.
-
-        Raises
-        ------
-        IndexError
-            If the datapoint index is out of range.
+        List[Dict[str, Any]]
+            List of metadata dictionaries for the specified indices.
         """
-        return self.metadata[datapoint_idx]
+        return [self.metadata[i] for i in indices]

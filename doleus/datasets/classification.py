@@ -50,26 +50,22 @@ class DoleusClassification(Doleus):
             per_datapoint_metadata=per_datapoint_metadata,
         )
 
-    def _create_new_instance(self, dataset, indices):
+    def _create_new_instance(self, dataset, indices, name):
+        # TODO: Do we need to create a new dataset instance?
         subset = Subset(dataset, indices)
-        new_metadata = [self.metadata_store.metadata[i] for i in indices]
+        metadata_subset = self.metadata_store.get_subset(indices)
         new_instance = DoleusClassification(
             dataset=subset,
-            name=f"{self.name}_subset",
+            name=name,
             task=self.task,
             num_classes=self.num_classes,
             label_to_name=self.label_to_name,
             metadata=self.metadata.copy(),
-            per_datapoint_metadata=new_metadata,
+            per_datapoint_metadata=metadata_subset,
         )
 
         for model_id in self.prediction_store.predictions:
-            preds = self.prediction_store.predictions[model_id]
-            sliced_preds = (
-                preds[indices]
-                if isinstance(preds, torch.Tensor)
-                else [preds[i] for i in indices]
-            )
+            sliced_preds = self.prediction_store.get_subset(model_id, indices)
             new_instance.prediction_store.add_predictions(sliced_preds, model_id)
 
         return new_instance

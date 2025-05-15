@@ -1,5 +1,5 @@
 import datetime
-from typing import Union
+from typing import Union, Any
 
 import numpy as np
 import pytz
@@ -70,3 +70,37 @@ def get_current_timestamp() -> str:
     tz = pytz.timezone("Europe/Berlin")
     timestamp = datetime.datetime.now(tz=tz).isoformat()
     return timestamp
+
+
+def create_filename(dataset_name: str, metadata_key: str, operator_str: str, value: Any) -> str:
+    """Generate a default filename for a dataset slice based on its criteria.
+
+    Parameters
+    ----------
+    dataset_name : str
+        Name of the dataset
+    metadata_key : str
+        The metadata key used for slicing.
+    operator_str : str
+        The operator used for comparison.
+    value : Any
+        The threshold or target value.
+
+    Returns
+    -------
+    str
+        A generated filename for the slice.
+    """
+    abbreviations = {
+        ">": "gt",
+        "<": "lt",
+        ">=": "ge",
+        "<=": "le",
+        "==": "eq",
+        "class": "cl",
+    }
+    return (
+        f"{dataset_name}_{metadata_key}_"
+        f"{abbreviations.get(operator_str, operator_str)}_"
+        f"{str(value).replace('.', '_')}"
+    )
