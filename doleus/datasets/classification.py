@@ -1,11 +1,8 @@
 from typing import Any, Dict, List, Optional
 
 import torch
-from torch import Tensor
 from torch.utils.data import Dataset, Subset
-from tqdm import tqdm
 
-from doleus.annotations import Annotations, Labels
 from doleus.datasets.base import Doleus
 from doleus.utils import TaskType
 

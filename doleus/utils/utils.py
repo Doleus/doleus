@@ -1,32 +1,11 @@
 import datetime
-from typing import List, Union
+from typing import Union
 
 import numpy as np
 import pytz
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-
-
-# TODO: Since we only allow a depth of 1 for dataset wrappers, this function can be made redundant
-def find_root_dataset(dataset: Dataset) -> Dataset:
-    """Find the root dataset by iteratively traversing dataset wrappers.
-
-    Parameters
-    ----------
-    dataset : Dataset
-        A dataset which may be wrapped in one or more dataset wrappers
-        (e.g. Subset).
-
-    Returns
-    -------
-    Dataset
-        The root dataset.
-    """
-    current = dataset
-    while hasattr(current, "dataset"):
-        current = current.dataset
-    return current
 
 
 def get_raw_image(

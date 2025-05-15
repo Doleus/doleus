@@ -3,15 +3,14 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset, Subset
+from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from doleus.annotations import Annotations, BoundingBoxes, Labels
+from doleus.annotations import BoundingBoxes, Labels
 from doleus.storage import GroundTruthStore, MetadataStore, PredictionStore
 from doleus.utils import (
     ATTRIBUTE_FUNCTIONS,
     OPERATOR_DICT,
-    find_root_dataset,
     get_current_timestamp,
     to_numpy_image,
 )
@@ -131,8 +130,7 @@ class Doleus(Dataset, ABC):
             range(len(self.dataset)), desc=f"Adding metadata '{metadata_key}'"
         ):
             if is_func:
-                root_dataset = find_root_dataset(self.dataset)
-                image = to_numpy_image(root_dataset, i)
+                image = to_numpy_image(self.dataset, i)
                 value = value_or_func(image)
             else:
                 value = value_or_func
@@ -153,11 +151,13 @@ class Doleus(Dataset, ABC):
         If the metadata list is shorter than the dataset, only the first
         len(metadata_list) datapoints will receive metadata.
         """
+        if len(metadata_list) > len(self.dataset):
+            raise ValueError(
+                f"Metadata list has {len(metadata_list)} entries but dataset has {len(self.dataset)} datapoints"
+            )
         for i, md_dict in enumerate(
             tqdm(metadata_list, desc="Adding metadata from list")
         ):
-            if i >= len(self.dataset):
-                break
             for key, value in md_dict.items():
                 self.metadata_store.add_metadata(i, key, value)
 
