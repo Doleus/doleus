@@ -5,9 +5,11 @@ import numpy as np
 import pytest
 import torch
 from moonwatcher.check import Check
-from moonwatcher.dataset.dataset import (MoonwatcherClassification,
-                                         MoonwatcherDetection,
-                                         get_original_indices)
+from moonwatcher.dataset.dataset import (
+    MoonwatcherClassification,
+    MoonwatcherDetection,
+    get_original_indices,
+)
 from torch.utils.data import Dataset
 
 

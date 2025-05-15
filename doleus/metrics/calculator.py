@@ -4,8 +4,7 @@ import torch
 
 from doleus.annotations import Annotations, BoundingBoxes, Labels
 from doleus.datasets import Doleus
-from doleus.metrics.metric_utils import (METRIC_FUNCTIONS, METRIC_KEYS,
-                                         get_class_id)
+from doleus.metrics.metric_utils import METRIC_FUNCTIONS, METRIC_KEYS, get_class_id
 from doleus.utils import TaskType
 
 

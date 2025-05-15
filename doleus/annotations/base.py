@@ -22,7 +22,7 @@ class Annotations:
     It is used to store both predictions and ground truths.
     """
 
-    def __init__(self, annotations: List[Annotation] = None):
+    def __init__(self, annotations: List[Annotation] = []):
         """Initialize an Annotations container.
 
         Parameters
@@ -30,7 +30,7 @@ class Annotations:
         annotations : List[Annotation], optional
             List of annotation objects to store.
         """
-        self.annotations = annotations if annotations is not None else []
+        self.annotations = annotations
         self.datapoint_number_to_annotation_index = {}
         for idx, annotation in enumerate(self.annotations):
             dp_num = annotation.datapoint_number

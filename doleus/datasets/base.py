@@ -8,8 +8,13 @@ from tqdm import tqdm
 
 from doleus.annotations import BoundingBoxes, Labels
 from doleus.storage import GroundTruthStore, MetadataStore, PredictionStore
-from doleus.utils import (ATTRIBUTE_FUNCTIONS, OPERATOR_DICT,
-                          get_current_timestamp, to_numpy_image, create_filename)
+from doleus.utils import (
+    ATTRIBUTE_FUNCTIONS,
+    OPERATOR_DICT,
+    get_current_timestamp,
+    to_numpy_image,
+    create_filename,
+)
 
 
 class Doleus(Dataset, ABC):
@@ -107,7 +112,7 @@ class Doleus(Dataset, ABC):
         )
 
     # -------------------------------------------------------------------------
-    #                            METADATA METHODS
+    #                            METADATA FUNCTIONS
     # -------------------------------------------------------------------------
     def add_metadata(
         self, metadata_key: str, value_or_func: Union[Any, Callable[[np.ndarray], Any]]
@@ -239,7 +244,9 @@ class Doleus(Dataset, ABC):
             if op_func(self.metadata_store.get_metadata(i, metadata_key), threshold)
         ]
         if slice_name is None:
-            slice_name = create_filename(self.name, metadata_key, operator_str, threshold)
+            slice_name = create_filename(
+                self.name, metadata_key, operator_str, threshold
+            )
 
         return self._create_new_instance(self.dataset, indices, slice_name)
 
@@ -280,64 +287,9 @@ class Doleus(Dataset, ABC):
             if op_func(self.metadata_store.get_metadata(i, metadata_key), threshold)
         ]
         if slice_name is None:
-            slice_name = create_filename(self.name, metadata_key, operator_str, percentile)
-
-        return self._create_new_instance(self.dataset, indices, slice_name)
-
-    def slice_by_metadata_value(
-        self,
-        metadata_key: str,
-        target_value: Any,
-        slice_name: Optional[str] = None,
-        tolerance: float = 1e-6,
-    ):
-        """Create a slice containing datapoints with a specific metadata value.
-
-        Parameters
-        ----------
-        metadata_key : str
-            The metadata key to match.
-        target_value : Any
-            The value to match against.
-        slice_name : Optional[str], optional
-            Name for the slice. If None, a name will be generated, by default None.
-        tolerance : float, optional
-            Tolerance for floating point comparisons, by default 1e-6.
-
-        Returns
-        -------
-        Slice
-            A new slice containing datapoints that match the target value.
-        """
-        indices = []
-        for i in range(len(self.dataset)):
-            try:
-                value = self.metadata_store.get_metadata(i, metadata_key)
-
-                # Handle different types of comparisons
-                if isinstance(target_value, float) and isinstance(value, (int, float)):
-                    # Use tolerance for float comparisons
-                    if abs(value - target_value) <= tolerance:
-                        indices.append(i)
-                elif isinstance(target_value, np.ndarray) and isinstance(
-                    value, np.ndarray
-                ):
-                    # Handle numpy array comparison
-                    if np.array_equal(value, target_value):
-                        indices.append(i)
-                else:
-                    # Direct comparison for other types
-                    if value == target_value:
-                        indices.append(i)
-            except KeyError:
-                # Skip datapoints that don't have this metadata key
-                continue
-
-        if not indices:
-            raise ValueError(f"No datapoints found with {metadata_key}={target_value}")
-
-        if not slice_name:
-            slice_name = create_filename(self.name, metadata_key, "==", target_value)
+            slice_name = create_filename(
+                self.name, metadata_key, operator_str, percentile
+            )
 
         return self._create_new_instance(self.dataset, indices, slice_name)
 

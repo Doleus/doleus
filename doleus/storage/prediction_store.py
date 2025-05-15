@@ -161,3 +161,20 @@ class PredictionStore:
         if model_id not in self.predictions:
             raise KeyError(f"No predictions found for model: {model_id}")
         return [self.predictions[model_id][i] for i in indices]
+
+    def get_predictions(self, model_id: str) -> List[Any]:
+        """Get all predictions for a specific model.
+
+        Parameters
+        ----------
+        model_id : str
+            Identifier of the model to get predictions for.
+
+        Returns
+        -------
+        List[Any]
+            List of all predictions for the specified model.
+        """
+        if model_id not in self.predictions:
+            raise KeyError(f"No predictions found for model: {model_id}")
+        return self.predictions[model_id].annotations

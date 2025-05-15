@@ -72,7 +72,9 @@ def get_current_timestamp() -> str:
     return timestamp
 
 
-def create_filename(dataset_name: str, metadata_key: str, operator_str: str, value: Any) -> str:
+def create_filename(
+    dataset_name: str, metadata_key: str, operator_str: str, value: Any
+) -> str:
     """Generate a default filename for a dataset slice based on its criteria.
 
     Parameters
