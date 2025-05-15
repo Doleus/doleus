@@ -3,17 +3,17 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset, Subset
+from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from doleus.annotations import Annotations, BoundingBoxes, Labels
+from doleus.annotations import BoundingBoxes, Labels
 from doleus.storage import GroundTruthStore, MetadataStore, PredictionStore
 from doleus.utils import (
     ATTRIBUTE_FUNCTIONS,
     OPERATOR_DICT,
-    find_root_dataset,
     get_current_timestamp,
     to_numpy_image,
+    create_filename,
 )
 
 
@@ -72,7 +72,9 @@ class Doleus(Dataset, ABC):
 
         self.groundtruth_store = GroundTruthStore(task_type=task_type, dataset=dataset)
         self.prediction_store = PredictionStore(task_type=task_type)
-        self.metadata_store = MetadataStore(metadata=per_datapoint_metadata)
+        self.metadata_store = MetadataStore(
+            num_datapoints=len(dataset), metadata=per_datapoint_metadata
+        )
 
     def __len__(self):
         return len(self.dataset)
@@ -111,7 +113,7 @@ class Doleus(Dataset, ABC):
         )
 
     # -------------------------------------------------------------------------
-    #                            METADATA METHODS
+    #                            METADATA FUNCTIONS
     # -------------------------------------------------------------------------
     def add_metadata(
         self, metadata_key: str, value_or_func: Union[Any, Callable[[np.ndarray], Any]]
@@ -132,8 +134,7 @@ class Doleus(Dataset, ABC):
             range(len(self.dataset)), desc=f"Adding metadata '{metadata_key}'"
         ):
             if is_func:
-                root_dataset = find_root_dataset(self.dataset)
-                image = to_numpy_image(root_dataset, i)
+                image = to_numpy_image(self.dataset, i)
                 value = value_or_func(image)
             else:
                 value = value_or_func
@@ -154,11 +155,13 @@ class Doleus(Dataset, ABC):
         If the metadata list is shorter than the dataset, only the first
         len(metadata_list) datapoints will receive metadata.
         """
+        if len(metadata_list) > len(self.dataset):
+            raise ValueError(
+                f"Metadata list has {len(metadata_list)} entries but dataset has {len(self.dataset)} datapoints"
+            )
         for i, md_dict in enumerate(
             tqdm(metadata_list, desc="Adding metadata from list")
         ):
-            if i >= len(self.dataset):
-                break
             for key, value in md_dict.items():
                 self.metadata_store.add_metadata(i, key, value)
 
@@ -206,45 +209,12 @@ class Doleus(Dataset, ABC):
     # -------------------------------------------------------------------------
     #                                SLICING
     # -------------------------------------------------------------------------
-    def _generate_filename(
-        self, metadata_key: str, operator_str: str, value: Any
-    ) -> str:
-        """Generate a default filename for a slice based on its criteria.
-
-        Parameters
-        ----------
-        metadata_key : str
-            The metadata key used for slicing.
-        operator_str : str
-            The operator used for comparison.
-        value : Any
-            The threshold or target value.
-
-        Returns
-        -------
-        str
-            A generated filename for the slice.
-        """
-        abbreviations = {
-            ">": "gt",
-            "<": "lt",
-            ">=": "ge",
-            "<=": "le",
-            "==": "eq",
-            "class": "cl",
-        }
-        return (
-            f"{self.name}_{metadata_key}_"
-            f"{abbreviations.get(operator_str, operator_str)}_"
-            f"{str(value).replace('.', '_')}"
-        )
-
     def slice_by_threshold(
         self,
         metadata_key: str,
         operator_str: str,
         threshold: Any,
-        slice_name: str = None,
+        slice_name: Optional[str] = None,
     ):
         """Create a slice based on a threshold comparison of metadata values.
 
@@ -271,16 +241,18 @@ class Doleus(Dataset, ABC):
             if op_func(self.metadata_store.get_metadata(i, metadata_key), threshold)
         ]
         if slice_name is None:
-            slice_name = self._generate_filename(metadata_key, operator_str, threshold)
+            slice_name = create_filename(
+                self.name, metadata_key, operator_str, threshold
+            )
 
-        return self._create_new_instance(self.dataset, indices)
+        return self._create_new_instance(self.dataset, indices, slice_name)
 
     def slice_by_percentile(
         self,
         metadata_key: str,
         operator_str: str,
         percentile: float,
-        slice_name: str = None,
+        slice_name: Optional[str] = None,
     ):
         """Create a slice based on a percentile threshold of metadata values.
 
@@ -292,7 +264,7 @@ class Doleus(Dataset, ABC):
             The comparison operator (">", "<", ">=", "<=", "==", "!=").
         percentile : float
             The percentile value (0-100) to use as threshold.
-        slice_name : str, optional
+        slice_name : Optional[str], optional
             Name for the slice. If None, a name will be generated, by default None.
 
         Returns
@@ -312,72 +284,11 @@ class Doleus(Dataset, ABC):
             if op_func(self.metadata_store.get_metadata(i, metadata_key), threshold)
         ]
         if slice_name is None:
-            slice_name = self._generate_filename(metadata_key, operator_str, percentile)
+            slice_name = create_filename(
+                self.name, metadata_key, operator_str, percentile
+            )
 
-        return self._create_new_instance(self.dataset, indices)
-
-    def slice_by_metadata_value(
-        self,
-        metadata_key: str,
-        target_value: Any,
-        slice_name: Optional[str] = None,
-        tolerance: float = 1e-6,
-    ):
-        """Create a slice containing datapoints with a specific metadata value.
-
-        Parameters
-        ----------
-        metadata_key : str
-            The metadata key to match.
-        target_value : Any
-            The value to match against.
-        slice_name : Optional[str], optional
-            Name for the slice. If None, a name will be generated, by default None.
-        tolerance : float, optional
-            Tolerance for floating point comparisons, by default 1e-6.
-
-        Returns
-        -------
-        Slice
-            A new slice containing datapoints that match the target value.
-        """
-        indices = []
-        for i in range(len(self.dataset)):
-            try:
-                value = self.metadata_store.get_metadata(i, metadata_key)
-
-                # Handle different types of comparisons
-                if isinstance(target_value, float) and isinstance(value, (int, float)):
-                    # Use tolerance for float comparisons
-                    if abs(value - target_value) <= tolerance:
-                        indices.append(i)
-                elif isinstance(target_value, np.ndarray) and isinstance(
-                    value, np.ndarray
-                ):
-                    # Handle numpy array comparison
-                    if np.array_equal(value, target_value):
-                        indices.append(i)
-                else:
-                    # Direct comparison for other types
-                    if value == target_value:
-                        indices.append(i)
-            except KeyError:
-                # Skip datapoints that don't have this metadata key
-                continue
-
-        if not indices:
-            raise ValueError(f"No datapoints found with {metadata_key}={target_value}")
-
-        if not slice_name:
-            # Create a safe slice name
-            value_str = str(target_value)
-            if len(value_str) > 50:
-                value_str = value_str[:47] + "..."
-            # Replace problematic characters
-            value_str = "".join(c if c.isalnum() else "_" for c in value_str)
-            slice_name = f"{metadata_key}_{value_str}"
-
-        return self._create_new_instance(self.dataset, indices)
+        return self._create_new_instance(self.dataset, indices, slice_name)
 
     def slice_by_groundtruth_class(
         self,
@@ -440,7 +351,7 @@ class Doleus(Dataset, ABC):
         # Generate default name if needed
         if not slice_name:
             target_classes = class_names if class_names else sorted(class_id_set)
-            class_str = "_".join(map(str, target_classes))[:50]  # Limit length
-            slice_name = f"gt_class_{class_str}"
+            class_str = "_".join(map(str, target_classes))
+            slice_name = create_filename(self.name, "class", "==", class_str)
 
-        return self._create_new_instance(self.dataset, filtered_indices)
+        return self._create_new_instance(self.dataset, filtered_indices, slice_name)

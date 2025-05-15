@@ -1,10 +1,7 @@
 from typing import Any, Dict, List, Optional
 
-import torch
 from torch.utils.data import Dataset, Subset
-from tqdm import tqdm
 
-from doleus.annotations import Annotations, BoundingBoxes
 from doleus.datasets.base import Doleus
 from doleus.utils import TaskType
 
@@ -44,20 +41,19 @@ class DoleusDetection(Doleus):
             per_datapoint_metadata=per_datapoint_metadata,
         )
 
-    def _create_new_instance(self, dataset, indices):
+    def _create_new_instance(self, dataset, indices, slice_name):
         subset = Subset(dataset, indices)
-        new_metadata = [self.metadata_store.metadata[i] for i in indices]
+        new_metadata = self.metadata_store.get_subset(indices)
         new_instance = DoleusDetection(
             dataset=subset,
-            name=f"{self.name}_subset",
+            name=slice_name,
             label_to_name=self.label_to_name,
             metadata=self.metadata.copy(),
             per_datapoint_metadata=new_metadata,
         )
 
         for model_id in self.prediction_store.predictions:
-            preds = self.prediction_store.predictions[model_id]
-            sliced_preds = [preds[i] for i in indices]
+            sliced_preds = self.prediction_store.get_subset(model_id, indices)
             new_instance.prediction_store.add_predictions(sliced_preds, model_id)
 
         return new_instance
