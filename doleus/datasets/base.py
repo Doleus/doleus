@@ -7,10 +7,16 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from doleus.annotations import BoundingBoxes, Labels
-from doleus.storage import GroundTruthStore, MetadataStore, PredictionStore
+from doleus.storage import (
+    ClassificationPredictionStore,
+    DetectionPredictionStore,
+    GroundTruthStore,
+    MetadataStore,
+)
 from doleus.utils import (
     ATTRIBUTE_FUNCTIONS,
     OPERATOR_DICT,
+    TaskType,
     get_current_timestamp,
     to_numpy_image,
     create_filename,
@@ -71,7 +77,18 @@ class Doleus(Dataset, ABC):
         self.metadata["_timestamp"] = get_current_timestamp()
 
         self.groundtruth_store = GroundTruthStore(task_type=task_type, dataset=dataset)
-        self.prediction_store = PredictionStore(task_type=task_type)
+        
+        if self.task_type == TaskType.CLASSIFICATION.value:
+            if not self.task:
+                raise ValueError(
+                    "For classification task_type, a specific 'task' (e.g., binary, multiclass, multilabel) must be provided."
+                )
+            self.prediction_store = ClassificationPredictionStore()
+        elif self.task_type == TaskType.DETECTION.value:
+            self.prediction_store = DetectionPredictionStore()
+        else:
+            raise ValueError(f"Unsupported task_type: {self.task_type} for PredictionStore assignment")
+
         self.metadata_store = MetadataStore(
             num_datapoints=len(dataset), metadata=per_datapoint_metadata
         )
@@ -86,7 +103,7 @@ class Doleus(Dataset, ABC):
         return getattr(self.dataset, attr)
 
     @abstractmethod
-    def _create_new_instance(self, dataset, indices):
+    def _create_new_instance(self, dataset, indices, slice_name):
         pass
 
     def add_model_predictions(
@@ -106,10 +123,21 @@ class Doleus(Dataset, ABC):
         model_id : str
             Name of the model that generated these predictions
         """
+        kwargs = {}
+        if self.task_type == TaskType.CLASSIFICATION.value:
+            kwargs['task'] = self.task
+            # Ensure predictions is a Tensor for classification
+            if not isinstance(predictions, torch.Tensor):
+                raise TypeError("For classification tasks, predictions must be a torch.Tensor.")
+        elif self.task_type == TaskType.DETECTION.value:
+            # Ensure predictions is a List[Dict] for detection
+            if not isinstance(predictions, list) or not all(isinstance(p, dict) for p in predictions):
+                raise TypeError("For detection tasks, predictions must be a list of dictionaries.")
+        
         self.prediction_store.add_predictions(
             predictions=predictions,
             model_id=model_id,
-            task=self.task,
+            **kwargs,
         )
 
     # -------------------------------------------------------------------------
@@ -165,23 +193,27 @@ class Doleus(Dataset, ABC):
             for key, value in md_dict.items():
                 self.metadata_store.add_metadata(i, key, value)
 
-    def add_predefined_metadata(self, attribute: str) -> None:
+    def add_predefined_metadata(self, keys: Union[str, List[str]]):
         """Add predefined metadata using functions from ATTRIBUTE_FUNCTIONS.
 
         Parameters
         ----------
-        attribute : str
-            Name of predefined metadata function to compute and add.
+        keys : Union[str, List[str]]
+            Name(s) of predefined metadata function(s) to compute and add.
             Available keys are defined in ATTRIBUTE_FUNCTIONS.
 
         Raises
         ------
         ValueError
-            If attribute is not found in ATTRIBUTE_FUNCTIONS.
+            If any key is not found in ATTRIBUTE_FUNCTIONS.
         """
-        if attribute not in ATTRIBUTE_FUNCTIONS:
-            raise ValueError(f"Unknown predefined metadata attribute: {attribute}")
-        self.add_metadata(attribute, ATTRIBUTE_FUNCTIONS[attribute])
+        if isinstance(keys, str):
+            keys = [keys]
+
+        for key in keys:
+            if key not in ATTRIBUTE_FUNCTIONS:
+                raise ValueError(f"Unknown predefined metadata key: {key}")
+            self.add_metadata(key, ATTRIBUTE_FUNCTIONS[key])
 
     def add_metadata_from_dataframe(self, df):
         """Add metadata from a pandas DataFrame.

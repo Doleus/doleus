@@ -13,7 +13,7 @@ class Labels(Annotation):
     """
 
     def __init__(
-        self, datapoint_number: int, labels: Tensor, scores: Optional[Tensor] = None
+        self, datapoint_number: int, labels: Optional[Tensor], scores: Optional[Tensor] = None
     ):
         """Initialize a Labels instance.
 
@@ -21,11 +21,18 @@ class Labels(Annotation):
         ----------
         datapoint_number : int
             Index for the corresponding data point.
-        labels : Tensor
-            A 1D integer tensor representing the label(s).
+        labels : Optional[Tensor]
+            A 1D integer tensor. For single-label tasks, this typically contains one class index
+            (e.g., `tensor([2])`). For multilabel tasks, this is typically a multi-hot encoded
+            tensor (e.g., `tensor([1, 0, 1])`). Can be `None` if only `scores` are provided.
         scores : Optional[Tensor], optional
-            A float tensor containing predicted probability scores (optional).
+            A 1D float tensor. For single-label tasks (e.g. multiclass), this usually contains
+            probabilities for each class (e.g., `tensor([0.1, 0.2, 0.7])`). For multilabel
+            tasks, this contains independent probabilities for each label (e.g.,
+            `tensor([0.8, 0.1, 0.9])`). Optional.
         """
+        if labels is None and scores is None:
+            raise ValueError("Either 'labels' or 'scores' must be provided but both are None.")
         super().__init__(datapoint_number)
         self.labels = labels
         self.scores = scores
@@ -38,7 +45,9 @@ class Labels(Annotation):
         dict
             Dictionary with keys 'labels' and optionally 'scores'.
         """
-        output = {"labels": self.labels}
+        output = {}
+        if self.labels is not None:
+            output["labels"] = self.labels
         if self.scores is not None:
             output["scores"] = self.scores
         return output

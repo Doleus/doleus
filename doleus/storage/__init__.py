@@ -1,5 +1,13 @@
-from doleus.storage.ground_truth_store import GroundTruthStore
+from doleus.storage.base_store import BasePredictionStore
+from doleus.storage.classification_store import ClassificationPredictionStore
+from doleus.storage.detection_store import DetectionPredictionStore
+from doleus.storage.groundtruth_store import GroundTruthStore
 from doleus.storage.metadata_store import MetadataStore
-from doleus.storage.prediction_store import PredictionStore
 
-__all__ = ["MetadataStore", "PredictionStore", "GroundTruthStore"]
+__all__ = [
+    "BasePredictionStore",
+    "ClassificationPredictionStore",
+    "DetectionPredictionStore",
+    "GroundTruthStore",
+    "MetadataStore",
+]
