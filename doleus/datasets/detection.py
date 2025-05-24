@@ -4,8 +4,7 @@ from torch.utils.data import Dataset, Subset
 
 from doleus.datasets.base import Doleus
 from doleus.utils import TaskType
-from doleus.storage.detection_ground_truth_store import DetectionGroundTruthStore
-from doleus.storage.detection_prediction_store import DetectionPredictionStore
+from doleus.storage import DetectionGroundTruthStore, DetectionPredictionStore
 from doleus.annotations import Annotations
 
 

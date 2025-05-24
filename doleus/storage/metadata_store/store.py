@@ -74,4 +74,4 @@ class MetadataStore:
         List[Dict[str, Any]]
             List of metadata dictionaries for the specified indices.
         """
-        return [self.metadata[i] for i in indices]
+        return [self.metadata[i] for i in indices] 

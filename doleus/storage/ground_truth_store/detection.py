@@ -1,7 +1,7 @@
 import torch
 from typing import Any
 
-from doleus.storage.base_store import BaseGroundTruthStore
+from doleus.storage.ground_truth_store.base import BaseGroundTruthStore
 from doleus.annotations import Annotations
 from doleus.annotations.detection import BoundingBoxes
 

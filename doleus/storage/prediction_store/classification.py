@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 
 from doleus.annotations import Annotations, Labels
-from doleus.storage.base_store import BasePredictionStore
+from doleus.storage.prediction_store.base import BasePredictionStore
 from doleus.utils import Task
 
 

@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 import torch
 
 from doleus.annotations import Annotations, BoundingBoxes
-from doleus.storage.base_store import BasePredictionStore
+from doleus.storage.prediction_store.base import BasePredictionStore
 
 
 class DetectionPredictionStore(BasePredictionStore):

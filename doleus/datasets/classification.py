@@ -5,8 +5,7 @@ from torch.utils.data import Dataset, Subset
 
 from doleus.datasets.base import Doleus
 from doleus.utils import TaskType
-from doleus.storage.classification_ground_truth_store import ClassificationGroundTruthStore
-from doleus.storage.classification_prediction_store import ClassificationPredictionStore
+from doleus.storage import ClassificationGroundTruthStore, ClassificationPredictionStore
 
 
 class DoleusClassification(Doleus):

@@ -9,8 +9,9 @@ from tqdm import tqdm
 from doleus.annotations import BoundingBoxes, Labels
 from doleus.storage import (
     MetadataStore,
+    BasePredictionStore,
+    BaseGroundTruthStore,
 )
-from doleus.storage.base_store import BasePredictionStore, BaseGroundTruthStore
 from doleus.utils import (
     ATTRIBUTE_FUNCTIONS,
     OPERATOR_DICT,
