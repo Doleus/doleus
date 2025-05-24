@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional
 
 import torch
 
@@ -119,4 +119,56 @@ class BasePredictionStore(ABC):
         """
         if model_id not in self.predictions:
             raise KeyError(f"No predictions found for model: {model_id}")
-        return self.predictions[model_id] 
+        return self.predictions[model_id]
+
+
+class BaseGroundTruthStore(ABC):
+    """Base storage for ground truth data for a specific dataset instance."""
+
+    def __init__(self, dataset: Any):
+        """
+        Initialize the ground truth store.
+
+        Parameters
+        ----------
+        dataset : Any
+            The raw PyTorch dataset object.
+        """
+        self.dataset = dataset
+        self.groundtruths: Optional[Annotations] = None
+        self.groundtruths = self._process_groundtruths()
+
+    @abstractmethod
+    def _process_groundtruths(self) -> Annotations:
+        """
+        Process raw ground truth data from the dataset into the standard annotation format.
+        Actual implementation will depend on the task type (classification, detection).
+
+        Returns
+        -------
+        Annotations
+            Processed ground truths in standard annotation format.
+        """
+        pass
+
+    def get(self, datapoint_number: int) -> Optional[Annotation]:
+        """
+        Get a single ground truth annotation object by datapoint number.
+
+        Parameters
+        ----------
+        datapoint_number : int
+            The ID of the sample in the dataset.
+
+        Returns
+        -------
+        Optional[Annotation]
+            The specific Annotation object (e.g., Labels, BoundingBoxes) for the datapoint,
+            or None if not found.
+        """
+        if self.groundtruths is None:
+            return None
+        try:
+            return self.groundtruths[datapoint_number]
+        except KeyError: 
+            return None 

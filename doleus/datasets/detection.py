@@ -4,6 +4,9 @@ from torch.utils.data import Dataset, Subset
 
 from doleus.datasets.base import Doleus
 from doleus.utils import TaskType
+from doleus.storage.detection_ground_truth_store import DetectionGroundTruthStore
+from doleus.storage.detection_prediction_store import DetectionPredictionStore
+from doleus.annotations import Annotations
 
 
 class DoleusDetection(Doleus):
@@ -40,6 +43,8 @@ class DoleusDetection(Doleus):
             metadata=metadata,
             per_datapoint_metadata=per_datapoint_metadata,
         )
+        self.groundtruth_store = DetectionGroundTruthStore(dataset=self.dataset)
+        self.prediction_store = DetectionPredictionStore()
 
     def _create_new_instance(self, dataset, indices, slice_name):
         subset = Subset(dataset, indices)
@@ -52,8 +57,9 @@ class DoleusDetection(Doleus):
             per_datapoint_metadata=new_metadata,
         )
 
-        for model_id in self.prediction_store.predictions:
-            sliced_preds = self.prediction_store.get_subset(model_id, indices)
-            new_instance.prediction_store.add_predictions(sliced_preds, model_id)
+        if self.prediction_store and self.prediction_store.predictions:
+            for model_id in self.prediction_store.predictions:
+                sliced_preds_annotations = self.prediction_store.get_subset(model_id, indices)
+                new_instance.prediction_store.predictions[model_id] = sliced_preds_annotations
 
         return new_instance

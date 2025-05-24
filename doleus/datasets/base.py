@@ -8,11 +8,9 @@ from tqdm import tqdm
 
 from doleus.annotations import BoundingBoxes, Labels
 from doleus.storage import (
-    ClassificationPredictionStore,
-    DetectionPredictionStore,
-    GroundTruthStore,
     MetadataStore,
 )
+from doleus.storage.base_store import BasePredictionStore, BaseGroundTruthStore
 from doleus.utils import (
     ATTRIBUTE_FUNCTIONS,
     OPERATOR_DICT,
@@ -76,18 +74,10 @@ class Doleus(Dataset, ABC):
         self.metadata = metadata if metadata is not None else {}
         self.metadata["_timestamp"] = get_current_timestamp()
 
-        self.groundtruth_store = GroundTruthStore(task_type=task_type, dataset=dataset)
-        
-        if self.task_type == TaskType.CLASSIFICATION.value:
-            if not self.task:
-                raise ValueError(
-                    "For classification task_type, a specific 'task' (e.g., binary, multiclass, multilabel) must be provided."
-                )
-            self.prediction_store = ClassificationPredictionStore()
-        elif self.task_type == TaskType.DETECTION.value:
-            self.prediction_store = DetectionPredictionStore()
-        else:
-            raise ValueError(f"Unsupported task_type: {self.task_type} for PredictionStore assignment")
+        # Ground truth and prediction stores are initialized to None in the base class.
+        # Specific instantiations will be handled by subclasses (DoleusClassification, DoleusDetection).
+        self.groundtruth_store: Optional[BaseGroundTruthStore] = None
+        self.prediction_store: Optional[BasePredictionStore] = None
 
         self.metadata_store = MetadataStore(
             num_datapoints=len(dataset), metadata=per_datapoint_metadata
