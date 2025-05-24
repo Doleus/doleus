@@ -81,8 +81,12 @@ class BasePredictionStore(ABC):
             raise KeyError(f"No predictions found for model: {model_id}")
         return self.predictions[model_id][datapoint_number]
 
+    @abstractmethod
     def get_subset(self, model_id: str, indices: List[int]) -> Annotations:
         """Get a subset of predictions for a specific model based on indices.
+
+        Each subclass must implement this method to handle re-indexing for their
+        specific annotation types (Labels for classification, BoundingBoxes for detection).
 
         Parameters
         ----------
@@ -94,15 +98,10 @@ class BasePredictionStore(ABC):
         Returns
         -------
         Annotations
-            An Annotations object containing predictions for the specified indices.
+            An Annotations object containing predictions for the specified indices,
+            with datapoint_number values re-indexed starting from 0.
         """
-        if model_id not in self.predictions:
-            raise KeyError(f"No predictions found for model: {model_id}")
-        
-        subset_annotations = Annotations()
-        for i in indices:
-            subset_annotations.add(self.predictions[model_id][i])
-        return subset_annotations
+        pass
 
     def get_predictions(self, model_id: str) -> Annotations:
         """Get all predictions for a specific model.

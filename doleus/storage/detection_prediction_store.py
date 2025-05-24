@@ -34,6 +34,39 @@ class DetectionPredictionStore(BasePredictionStore):
         processed_predictions = self._process_predictions(predictions)
         self.predictions[model_id] = processed_predictions
 
+    def get_subset(self, model_id: str, indices: List[int]) -> Annotations:
+        """Get a subset of predictions for a specific model based on indices.
+
+        Parameters
+        ----------
+        model_id : str
+            Identifier of the model to get predictions for.
+        indices : List[int]
+            List of indices to get predictions for.
+
+        Returns
+        -------
+        Annotations
+            An Annotations object containing predictions for the specified indices,
+            with datapoint_number values re-indexed starting from 0.
+        """
+        if model_id not in self.predictions:
+            raise KeyError(f"No predictions found for model: {model_id}")
+        
+        subset_annotations = Annotations()
+        for new_idx, original_idx in enumerate(indices):
+            original_annotation = self.predictions[model_id][original_idx]
+            
+            # Create a new BoundingBoxes annotation with re-indexed datapoint_number
+            new_annotation = BoundingBoxes(
+                datapoint_number=new_idx,
+                boxes_xyxy=original_annotation.boxes_xyxy,
+                labels=original_annotation.labels,
+                scores=original_annotation.scores
+            )
+            subset_annotations.add(new_annotation)
+        return subset_annotations
+
     def _process_predictions(
         self,
         predictions: List[Dict[str, Any]],

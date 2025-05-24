@@ -7,7 +7,6 @@ from doleus.datasets.base import Doleus
 from doleus.utils import TaskType
 from doleus.storage.classification_ground_truth_store import ClassificationGroundTruthStore
 from doleus.storage.classification_prediction_store import ClassificationPredictionStore
-from doleus.annotations import Annotations
 
 
 class DoleusClassification(Doleus):
@@ -52,15 +51,14 @@ class DoleusClassification(Doleus):
             metadata=metadata,
             per_datapoint_metadata=per_datapoint_metadata,
         )
+        
+        # Instantiate the classification-specific stores
         self.groundtruth_store = ClassificationGroundTruthStore(
-            dataset=self.dataset,
-            task=self.task,
-            num_classes=self.num_classes
+            dataset=self.dataset, task=self.task, num_classes=self.num_classes
         )
         self.prediction_store = ClassificationPredictionStore()
 
     def _create_new_instance(self, dataset, indices, name):
-        # TODO: Do we need to create a new dataset instance?
         subset = Subset(dataset, indices)
         metadata_subset = self.metadata_store.get_subset(indices)
         new_instance = DoleusClassification(
@@ -73,12 +71,9 @@ class DoleusClassification(Doleus):
             per_datapoint_metadata=metadata_subset,
         )
 
-        # Correctly transfer sliced predictions
-        if self.prediction_store and self.prediction_store.predictions:
-            for model_id in self.prediction_store.predictions:
-                # get_subset already returns an Annotations object with re-indexed datapoint_numbers
-                sliced_preds_annotations = self.prediction_store.get_subset(model_id, indices)
-                # Directly assign the Annotations object to the new instance's store
-                new_instance.prediction_store.predictions[model_id] = sliced_preds_annotations
+        # Copy sliced predictions directly to the new instance
+        for model_id in self.prediction_store.predictions:
+            sliced_preds = self.prediction_store.get_subset(model_id, indices)
+            new_instance.prediction_store.predictions[model_id] = sliced_preds
 
         return new_instance
