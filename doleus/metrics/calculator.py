@@ -79,10 +79,7 @@ class MetricCalculator:
         try:
             gt_tensor = torch.stack([ann.labels.squeeze() for ann in groundtruths])
 
-            pred_list = [
-                ann.scores if ann.scores is not None else ann.labels.squeeze()
-                for ann in predictions
-            ]
+            pred_list = [ann.labels.squeeze() for ann in predictions]
             if not pred_list:
                 raise ValueError("No predictions provided to compute the metric.")
             pred_tensor = torch.stack(pred_list)
