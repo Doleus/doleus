@@ -29,7 +29,7 @@ Please take a moment to review these guidelines before submitting a pull request
 
 **Before making any significant changes, please [open an issue](https://github.com/doleus/doleus/issues).** Discussing your proposed changes ahead of time will make the contribution process smooth for everyone. Changes that were not discussed in an issue may be rejected.
 
-A good first step is to search for open [issues](https://github.com/doleus/doleus/issues). Issues are labeled, and some good issues to start with are labeled: [good first issue](https://github.com/doleus/doleus/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+A good first step is to search for open [issues](https://github.com/doleus/doleus/issues).
 
 ### Contribution Process
 
@@ -52,7 +52,7 @@ A good first step is to search for open [issues](https://github.com/doleus/doleu
 
 ### Requirements
 
-- **Python 3.10+** (as specified in `pyproject.toml`)
+- **Python 3.11+** (as specified in `pyproject.toml`)
 - **Poetry** for dependency management and packaging
 
 ### Steps
@@ -95,7 +95,6 @@ We use several tools to maintain code quality:
 
 - **[Pre-commit hooks](https://pre-commit.com/)** for automated formatting and linting
 - **[Conventional Commits](https://www.conventionalcommits.org/)** for commit messages
-- **[Commitizen](https://commitizen-tools.github.io/commitizen/)** for standardized releases
 
 ### Commit Message Format
 
@@ -124,12 +123,6 @@ Run the test suite using Poetry:
 ```bash
 # Run all tests
 poetry run pytest
-
-# Run tests with coverage
-poetry run pytest --cov=doleus
-
-# Run tests in watch mode (if available)
-poetry run pytest --watch
 ```
 
 For specific test files:
