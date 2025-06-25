@@ -42,6 +42,11 @@ This approach surfaces hidden failure modes that aggregate metrics miss.
 ```sh
 pip install git+https://github.com/doleus/doleus.git
 ```
+### Try the demo to see how Doleus works end to end
+Want to try a complete working example before diving into the details?  
+Run [`examples/demos/demo_classification.py`](examples/demos/demo_classification.py) to see the full workflow in action.
+
+### Use Doleus on your own dataset
 
 ```python
 from doleus.datasets import DoleusClassification
