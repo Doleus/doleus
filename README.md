@@ -89,14 +89,16 @@ result = check.run(show=True)
 ❌ glossy_surface_accuracy           0.87 > 0.95    (Accuracy on product_surface_type_eq_glossy)
 ```
 
-> [!TIP] > **Storing Results**: You can save check results to JSON files by setting `save_report=True`:
+> [!TIP]
+> **Storing Results**: You can save check results to JSON files by setting `save_report=True`:
 >
 > ```python
 > result = check.run(show=True, save_report=True)
 > # Creates: check_glossy_surface_accuracy_report.json
 > ```
 
-> [!TIP] > **Multiple Model Predictions**: You can add predictions from different model versions to the same dataset:
+> [!TIP]
+> **Multiple Model Predictions**: You can add predictions from different model versions to the same dataset:
 >
 > ```python
 > doleus_dataset.add_model_predictions(predictions_v1, model_id="model_v1")
@@ -104,9 +106,11 @@ result = check.run(show=True)
 > # Now you can test both models on the same slices
 > ```
 
-> [!IMPORTANT] > **Prediction Inheritance**: Add predictions to your dataset **before** creating slices. Slices automatically inherit predictions from their parent dataset, but only if the predictions exist when the slice is created.
+> [!IMPORTANT]
+> **Prediction Inheritance**: Add predictions to your dataset **before** creating slices. Slices automatically inherit predictions from their parent dataset, but only if the predictions exist when the slice is created.
 
-> [!TIP] > **Ways to add metadata**: Doleus offers a variety of ways to add metadata to your data set. Find all supported functions in `doleus.dataset.base.py` under "METADATA FUNCTIONS":
+> [!TIP]
+> **Ways to add metadata**: Doleus offers a variety of ways to add metadata to your data set. Find all supported functions in `doleus.dataset.base.py` under "METADATA FUNCTIONS":
 
 > [!TIP]
 > **Available Metrics**: Find all supported metrics in `doleus.metrics.METRIC_FUNCTIONS`. Common ones include:
@@ -351,7 +355,8 @@ Checks become tests when you add pass/fail conditions (operator and value). With
 > [!NOTE]
 > **Prediction Format**: Doleus uses [torchmetrics](https://torchmetrics.readthedocs.io/) to compute metrics and expects the same prediction formats that torchmetrics functions require.
 
-> [!IMPORTANT] > **Macro Averaging Default**: Doleus uses **macro averaging** as the default for classification metrics (Accuracy, Precision, Recall, F1) to avoid known bugs in torchmetrics' micro averaging implementation (see [GitHub issue #2280](https://github.com/Lightning-AI/torchmetrics/issues/2280)).
+> [!IMPORTANT]
+> **Macro Averaging Default**: Doleus uses **macro averaging** as the default for classification metrics (Accuracy, Precision, Recall, F1) to avoid known bugs in torchmetrics' micro averaging implementation (see [GitHub issue #2280](https://github.com/Lightning-AI/torchmetrics/issues/2280)).
 >
 > You can override this by setting `metric_parameters={"average": "micro"}` in your checks if needed.
 
@@ -450,7 +455,8 @@ check = Check(
 )
 ```
 
-> [!IMPORTANT] > **Data Type Matters**: The distinction between integer and float predictions determines how Doleus processes your data:
+> [!IMPORTANT]
+> **Data Type Matters**: The distinction between integer and float predictions determines how Doleus processes your data:
 >
 > - **Integer tensors** → Treated as final class decisions (labels)
 > - **Float tensors** → Treated as scores/probabilities that may need thresholding
