@@ -46,7 +46,7 @@ pip install git+https://github.com/doleus/doleus.git
 Want to try a complete working example before diving into the details?  
 Run [`examples/demos/demo_classification.py`](examples/demos/demo_classification.py) to see the full workflow in action.
 
-### Use Doleus on your own dataset
+### Demo
 
 ```python
 from doleus.datasets import DoleusClassification
