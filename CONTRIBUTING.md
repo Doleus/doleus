@@ -114,6 +114,19 @@ Examples:
 - `fix: resolve issue with slice inheritance of predictions`
 - `docs: update quick start guide for object detection`
 
+### Code Formatting
+
+Code should be formatted using:
+
+- **Black**: ensures consistent formatting across the codebase.
+- **isort**: organizes imports into sections and sorts them alphabetically.
+
+To format your code before committing:
+
+```bash
+poetry run black .
+poetry run isort .
+```
 ---
 
 ## 🧪 Running Tests
