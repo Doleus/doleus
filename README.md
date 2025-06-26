@@ -34,7 +34,8 @@ Doleus is a PyTorch-based testing framework for image-based AI models. It helps 
 
 This approach surfaces hidden failure modes that aggregate metrics miss.
 
-> [!NOTE] > **Task Types**: Doleus works reliably for object detection and classification tasks. If you work on different tasks and would like to see them implemented, please submit a feature request or start contributing yourself🤗 .
+> [!NOTE]
+> **Task Types**: Doleus works reliably for object detection and classification tasks. If you work on different tasks and would like to see them implemented, please submit a feature request or start contributing yourself🤗 .
 
 ## Quick Start (Classification)
 
