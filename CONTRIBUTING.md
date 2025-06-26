@@ -53,7 +53,7 @@ A good first step is to search for open [issues](https://github.com/doleus/doleu
 ### Requirements
 
 - **Python 3.11+** (as specified in `pyproject.toml`)
-- **Poetry** for dependency management and packaging
+- **Poetry >2.0.0** for dependency management and packaging
 
 ### Steps
 
