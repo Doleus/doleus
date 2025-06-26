@@ -72,19 +72,23 @@ A good first step is to search for open [issues](https://github.com/doleus/doleu
 
 3. Activate the virtual environment:
 
-   ```bash
-   poetry shell
-   ```
+   You can run commands within the project's virtual environment in two ways:
+
+   - **Prefix commands with `poetry run`**: This is useful for running single commands. For example, to run the test suite:
+
+     ```bash
+     poetry run pytest
+     ```
+
+   - **Activate a shell session**: To activate a persistent shell within the virtual environment for interactive development, run the following command:
+     ```bash
+     source $(poetry env info --path)/bin/activate
+     ```
 
 4. Install pre-commit hooks (optional but recommended):
 
    ```bash
    pre-commit install
-   ```
-
-5. Verify the installation by running tests:
-   ```bash
-   poetry run pytest
    ```
 
 ---
@@ -127,6 +131,7 @@ To format your code before committing:
 poetry run black .
 poetry run isort .
 ```
+
 ---
 
 ## 🧪 Running Tests

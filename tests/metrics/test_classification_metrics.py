@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Doleus contributors
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 import torch
 from doleus.metrics import calculate_metric

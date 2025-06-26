@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Doleus contributors
+# SPDX-License-Identifier: Apache-2.0
+
 import json
 from typing import Any, Dict, List, Optional, Union
 

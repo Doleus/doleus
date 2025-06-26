@@ -1,5 +1,8 @@
-# CHANGELOG
+# SPDX-FileCopyrightText: 2025 Doleus contributors
 
+# SPDX-License-Identifier: Apache-2.0
+
+# CHANGELOG
 
 ## v0.1.1 (2025-03-10)
 
@@ -70,7 +73,6 @@
 - Additional test for dataset
   ([`a1f6a83`](https://github.com/iamheinrich/doleus/commit/a1f6a83888cb4eb2c31fc419512cd6896363df0a))
 
-
 ## v0.1.0 (2025-01-09)
 
 ### Bug Fixes
@@ -125,7 +127,6 @@
 
 - Updated tests for annotations.py
   ([`aae01fc`](https://github.com/iamheinrich/doleus/commit/aae01fc611a6252b4a37e390274d90eb5a242999))
-
 
 ## v0.0.0 (2024-10-28)
 
