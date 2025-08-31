@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 import torch
+
 from doleus.utils import Task, TaskType
 
 
@@ -210,3 +211,73 @@ def test_chained_slicing(
             high_conf_validated.metadata_store.get_metadata(i, "confidence_score")
             >= 0.9
         )
+
+
+def test_slice_and_operator(
+    doleus_binary_classification_dataset, basic_metadata, numeric_metadata
+):
+    dataset = doleus_binary_classification_dataset
+    dataset.add_metadata_from_list(basic_metadata)
+    dataset.add_metadata_from_list(numeric_metadata)
+
+    conditions = [("validated", "==", True), ("confidence_score", ">=", 0.9)]
+
+    filtered_slice = dataset.slice_by_conditions(
+        conditions, logical_operator="AND", slice_name="validated_high_conf"
+    )
+
+    assert len(filtered_slice) == 3
+    assert filtered_slice.name == "validated_high_conf"
+
+    for i in range(len(filtered_slice)):
+        assert filtered_slice.metadata_store.get_metadata(i, "validated") == True
+        assert filtered_slice.metadata_store.get_metadata(i, "confidence_score") >= 0.9
+
+
+def test_slice_or_operator(
+    doleus_binary_classification_dataset, basic_metadata, numeric_metadata
+):
+    dataset = doleus_binary_classification_dataset
+    dataset.add_metadata_from_list(basic_metadata)
+    dataset.add_metadata_from_list(numeric_metadata)
+
+    conditions = [("batch_id", "==", 1), ("batch_id", "==", 2)]
+
+    filtered_slice = dataset.slice_by_conditions(
+        conditions, logical_operator="OR", slice_name="batch_1_or_2"
+    )
+
+    assert len(filtered_slice) == 6
+    assert filtered_slice.name == "batch_1_or_2"
+
+    for i in range(len(filtered_slice)):
+        batch_id = filtered_slice.metadata_store.get_metadata(i, "batch_id")
+        assert batch_id in [1, 2]
+
+
+def test_complex_slicing(
+    doleus_binary_classification_dataset, basic_metadata, numeric_metadata
+):
+    dataset = doleus_binary_classification_dataset
+    dataset.add_metadata_from_list(basic_metadata)
+    dataset.add_metadata_from_list(numeric_metadata)
+
+    new_method = dataset.slice_by_conditions(
+        [("validated", "==", True), ("confidence_score", ">=", 0.9)],
+        logical_operator="AND",
+    )
+
+    chained_method = dataset.slice_by_value("validated", "==", True)
+    chained_method = chained_method.slice_by_value("confidence_score", ">=", 0.9)
+
+    assert len(new_method) == len(chained_method)
+
+    for i in range(len(new_method)):
+        new_validated = new_method.metadata_store.get_metadata(i, "validated")
+        new_conf = new_method.metadata_store.get_metadata(i, "confidence_score")
+
+        chained_validated = chained_method.metadata_store.get_metadata(i, "validated")
+        chained_conf = chained_method.metadata_store.get_metadata(i, "confidence_score")
+
+        assert new_validated == chained_validated == True
+        assert new_conf == chained_conf >= 0.9
