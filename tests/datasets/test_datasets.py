@@ -233,6 +233,21 @@ def test_slice_and_operator(
         assert filtered_slice.metadata_store.get_metadata(i, "validated") == True
         assert filtered_slice.metadata_store.get_metadata(i, "confidence_score") >= 0.9
 
+    camera_conditions = [
+        ("source", "in", ["camera_a"]),
+        ("confidence_score", "between", [0.85, 1.0]),
+    ]
+
+    camera_slice = dataset.slice_by_conditions(
+        camera_conditions, logical_operator="AND", slice_name="camera_a_high_conf"
+    )
+
+    assert len(camera_slice) == 4
+    for i in range(len(camera_slice)):
+        assert camera_slice.metadata_store.get_metadata(i, "source") == "camera_a"
+        score = camera_slice.metadata_store.get_metadata(i, "confidence_score")
+        assert 0.85 <= score <= 1.0
+
 
 def test_slice_or_operator(
     doleus_binary_classification_dataset, basic_metadata, numeric_metadata
@@ -254,30 +269,17 @@ def test_slice_or_operator(
         batch_id = filtered_slice.metadata_store.get_metadata(i, "batch_id")
         assert batch_id in [1, 2]
 
-
-def test_complex_slicing(
-    doleus_binary_classification_dataset, basic_metadata, numeric_metadata
-):
-    dataset = doleus_binary_classification_dataset
-    dataset.add_metadata_from_list(basic_metadata)
-    dataset.add_metadata_from_list(numeric_metadata)
-
-    new_method = dataset.slice_by_conditions(
-        [("validated", "==", True), ("confidence_score", ">=", 0.9)],
-        logical_operator="AND",
+    source_slice = dataset.slice_by_value(
+        "source", "in", ["camera_a", "camera_b"], "all_sources"
     )
+    assert len(source_slice) == 10
 
-    chained_method = dataset.slice_by_value("validated", "==", True)
-    chained_method = chained_method.slice_by_value("confidence_score", ">=", 0.9)
+    excluded_batch = dataset.slice_by_value(
+        "batch_id", "not_in", [1], "excluded_batch_1"
+    )
+    assert len(excluded_batch) == 7
 
-    assert len(new_method) == len(chained_method)
-
-    for i in range(len(new_method)):
-        new_validated = new_method.metadata_store.get_metadata(i, "validated")
-        new_conf = new_method.metadata_store.get_metadata(i, "confidence_score")
-
-        chained_validated = chained_method.metadata_store.get_metadata(i, "validated")
-        chained_conf = chained_method.metadata_store.get_metadata(i, "confidence_score")
-
-        assert new_validated == chained_validated == True
-        assert new_conf == chained_conf >= 0.9
+    confidence_range = dataset.slice_by_value(
+        "confidence_score", "between", [0.8, 0.95], "mid_confidence"
+    )
+    assert len(confidence_range) == 6
