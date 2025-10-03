@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 import torch
+
 from doleus.utils import Task, TaskType
 
 
@@ -210,3 +211,75 @@ def test_chained_slicing(
             high_conf_validated.metadata_store.get_metadata(i, "confidence_score")
             >= 0.9
         )
+
+
+def test_slice_and_operator(
+    doleus_binary_classification_dataset, basic_metadata, numeric_metadata
+):
+    dataset = doleus_binary_classification_dataset
+    dataset.add_metadata_from_list(basic_metadata)
+    dataset.add_metadata_from_list(numeric_metadata)
+
+    conditions = [("validated", "==", True), ("confidence_score", ">=", 0.9)]
+
+    filtered_slice = dataset.slice_by_conditions(
+        conditions, logical_operator="AND", slice_name="validated_high_conf"
+    )
+
+    assert len(filtered_slice) == 3
+    assert filtered_slice.name == "validated_high_conf"
+
+    for i in range(len(filtered_slice)):
+        assert filtered_slice.metadata_store.get_metadata(i, "validated") == True
+        assert filtered_slice.metadata_store.get_metadata(i, "confidence_score") >= 0.9
+
+    camera_conditions = [
+        ("source", "in", ["camera_a"]),
+        ("confidence_score", "between", [0.85, 1.0]),
+    ]
+
+    camera_slice = dataset.slice_by_conditions(
+        camera_conditions, logical_operator="AND", slice_name="camera_a_high_conf"
+    )
+
+    assert len(camera_slice) == 4
+    for i in range(len(camera_slice)):
+        assert camera_slice.metadata_store.get_metadata(i, "source") == "camera_a"
+        score = camera_slice.metadata_store.get_metadata(i, "confidence_score")
+        assert 0.85 <= score <= 1.0
+
+
+def test_slice_or_operator(
+    doleus_binary_classification_dataset, basic_metadata, numeric_metadata
+):
+    dataset = doleus_binary_classification_dataset
+    dataset.add_metadata_from_list(basic_metadata)
+    dataset.add_metadata_from_list(numeric_metadata)
+
+    conditions = [("batch_id", "==", 1), ("batch_id", "==", 2)]
+
+    filtered_slice = dataset.slice_by_conditions(
+        conditions, logical_operator="OR", slice_name="batch_1_or_2"
+    )
+
+    assert len(filtered_slice) == 6
+    assert filtered_slice.name == "batch_1_or_2"
+
+    for i in range(len(filtered_slice)):
+        batch_id = filtered_slice.metadata_store.get_metadata(i, "batch_id")
+        assert batch_id in [1, 2]
+
+    source_slice = dataset.slice_by_value(
+        "source", "in", ["camera_a", "camera_b"], "all_sources"
+    )
+    assert len(source_slice) == 10
+
+    excluded_batch = dataset.slice_by_value(
+        "batch_id", "not_in", [1], "excluded_batch_1"
+    )
+    assert len(excluded_batch) == 7
+
+    confidence_range = dataset.slice_by_value(
+        "confidence_score", "between", [0.8, 0.95], "mid_confidence"
+    )
+    assert len(confidence_range) == 6

@@ -391,3 +391,48 @@ class Doleus(Dataset, ABC):
             slice_name = create_filename(self.name, "class", "==", class_str)
 
         return self._create_new_instance(self.dataset, filtered_indices, slice_name)
+
+    def slice_by_conditions(
+        self,
+        conditions: List[tuple],
+        logical_operator: str = "AND",
+        slice_name: Optional[str] = None,
+    ):
+        """Create a slice based on multiple conditions.
+
+        Parameters
+        ----------
+        conditions : List[tuple]
+            List of conditions in format (metadata_key, operator_str, value).
+        logical_operator : str, optional
+            How to combine conditions: "AND" or "OR", by default "AND".
+        slice_name : str, optional
+            Name for the slice. If None, a name will be generated, by default None.
+
+        Returns
+        -------
+        Slice
+            A new slice containing datapoints that meet the criteria.
+        """
+        if logical_operator.upper() not in ["AND", "OR"]:
+            raise ValueError("logical_operator must be 'AND' or 'OR'")
+
+        indices = []
+        for i in range(len(self.dataset)):
+            if logical_operator.upper() == "AND":
+                if all(
+                    OPERATOR_DICT[op](self.metadata_store.get_metadata(i, key), val)
+                    for key, op, val in conditions
+                ):
+                    indices.append(i)
+            else:
+                if any(
+                    OPERATOR_DICT[op](self.metadata_store.get_metadata(i, key), val)
+                    for key, op, val in conditions
+                ):
+                    indices.append(i)
+
+        if slice_name is None:
+            slice_name = f"{self.name}_filtered_{len(conditions)}conditions_{logical_operator.lower()}"
+
+        return self._create_new_instance(self.dataset, indices, slice_name)
