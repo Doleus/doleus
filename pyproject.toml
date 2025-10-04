@@ -1,7 +1,7 @@
 [project]
 name = "doleus"
-version = "0.2.0"
-description = ""
+version = "0.2.2"
+description = "Doleus: Test Your Image-based AI Models on Data Slices"
 authors = [
     {name = "Hendrik Schulze Bröring"},
     {name = "Niklas Schmolenski"}
@@ -10,14 +10,14 @@ license = { text = "Apache-2.0" }
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "torch (>=2.7.1,<3.0.0)",
-    "torchvision (>=0.22.1,<0.23.0)",
-    "tqdm (>=4.67.1,<5.0.0)",
-    "torchmetrics (>=1.7.3,<2.0.0)",
-    "opencv-python-headless (>=4.11.0.86,<5.0.0.0)",
-    "pytz (>=2025.2,<2026.0)",
-    "numpy (>=2.0.0,<3.0.0)",
-    "pillow (>=11.2.1,<12.0.0)"
+    "torch>=2.0.0,<3.0.0",
+    "torchvision>=0.15.0,<1.0.0",
+    "tqdm>=4.60.0,<5.0.0",
+    "torchmetrics>=1.0.0,<2.0.0",
+    "opencv-python-headless>=4.5.0,<5.0.0.0",
+    "pytz>=2023.0",
+    "numpy>=1.21.0,<3.0.0",
+    "pillow>=10.0.0,<13.0.0"
 ]
 
 

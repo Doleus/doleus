@@ -4,6 +4,21 @@
 
 # CHANGELOG
 
+## v0.2.2 (2025-10-04)
+
+### Build
+
+- Loosened dependency constraints to support wider range of PyTorch versions (torch>=2.0.0, torchvision>=0.15.0)
+  - Fixes compatibility issues with Google Colab and other environments using newer PyTorch versions
+  - All tests pass with loosened constraints
+
+## v0.2.1 (2025-10-04) - YANKED
+
+### Note
+
+- **This version was yanked from PyPI** due to untested dependency constraints
+- Users should use v0.2.2 or later
+
 ## v0.2.0 (2025-10-04)
 
 ### Build
