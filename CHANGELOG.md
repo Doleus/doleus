@@ -4,6 +4,40 @@
 
 # CHANGELOG
 
+## v0.2.0 (2025-10-04)
+
+### Build
+
+- Replaced opencv-python with opencv-python-headless
+  ([`5f6b51c`](https://github.com/Doleus/doleus/commit/5f6b51c))
+
+### Features
+
+- Support complex slicing conditions with AND/OR logic
+  ([`4e881f5`](https://github.com/Doleus/doleus/commit/4e881f5))
+
+- Added slicing operators: in, not_in, between
+  ([`75fa504`](https://github.com/Doleus/doleus/commit/75fa504))
+
+- Added not_between operator
+  ([`a4d3442`](https://github.com/Doleus/doleus/commit/a4d3442))
+
+### Documentation
+
+- Added docs for new slicing methods
+  ([`50f77d0`](https://github.com/Doleus/doleus/commit/50f77d0))
+
+### Testing
+
+- Added tests for complex slicing conditions (AND/OR operators)
+  ([`4e881f5`](https://github.com/Doleus/doleus/commit/4e881f5))
+
+- Added tests for automatically created metadata
+  ([`65c10c3`](https://github.com/Doleus/doleus/commit/65c10c3))
+
+- Test for not_between operator
+  ([`7cec696`](https://github.com/Doleus/doleus/commit/7cec696))
+
 ## v0.1.1 (2025-03-10)
 
 ### Bug Fixes

@@ -12,6 +12,14 @@ OPERATOR_DICT = {
     "==": op.eq,
     "=": op.eq,
     "!=": op.ne,
+    "in": lambda x, y: x in y,
+    "not_in": lambda x, y: x not in y,
+    "between": lambda x, y: (
+        y[0] <= x <= y[1] if isinstance(y, (list, tuple)) and len(y) == 2 else False
+    ),
+    "not_between": lambda x, y: (
+        not (y[0] <= x <= y[1]) if isinstance(y, (list, tuple)) and len(y) == 2 else False
+    ),
 }
 
 

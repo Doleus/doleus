@@ -347,8 +347,84 @@ Subsets of your data filtered by metadata:
 - `slice_by_value("weather_condition", "==", "fog")` → Only foggy conditions
 - `slice_by_groundtruth_class(class_names=["pedestrian", "cyclist"])` → Specific object classes
 
-> [!NOTE]
-> **Slicing Method**: Use `slice_by_value("metadata_key", "==", "value")` for categorical filtering. In theory, all comparison operators are supported: `>`, `<`, `>=`, `<=`, `==`, `!=`.
+#### **Available Operators**
+
+Doleus supports a comprehensive set of operators for flexible data slicing:
+
+**Comparison operators:**
+
+- `>`, `<`, `>=`, `<=`, `==`, `!=` - Standard comparisons
+
+**Membership operators:**
+
+- `in` - Check if value is in a list: `slice_by_value("source", "in", ["camera_a", "camera_b"])`
+- `not_in` - Check if value is not in a list: `slice_by_value("batch_id", "not_in", [1, 2])`
+
+**Range operators:**
+
+- `between` - Check if value falls within range (inclusive): `slice_by_value("confidence", "between", [0.8, 0.95])`
+- `not_between` - Check if value falls outside range: `slice_by_value("temperature", "not_between", [20, 30])`
+
+#### **Combining Multiple Conditions**
+
+For more complex filtering, use `slice_by_conditions()` to combine multiple criteria with logical operators:
+
+```python
+# AND: All conditions must be true
+conditions = [
+    ("validated", "==", True),
+    ("confidence_score", ">=", 0.9),
+    ("source", "in", ["camera_a", "camera_b"])
+]
+high_quality = doleus_dataset.slice_by_conditions(
+    conditions,
+    logical_operator="AND",
+    slice_name="high_quality_validated"
+)
+
+# OR: Any condition must be true
+conditions = [
+    ("weather", "==", "fog"),
+    ("weather", "==", "rain"),
+    ("visibility_meters", "<", 50)
+]
+challenging_weather = doleus_dataset.slice_by_conditions(
+    conditions,
+    logical_operator="OR",
+    slice_name="challenging_conditions"
+)
+```
+
+**Practical Example - Manufacturing Quality Control:**
+
+```python
+# Find defects that are either very small OR on reflective surfaces with low confidence
+defect_conditions = [
+    ("defect_area_mm2", "<=", 1.0),           # Small defects
+    ("surface_reflectivity", ">=", 0.8),       # Highly reflective
+    ("detection_confidence", "between", [0.5, 0.7])  # Medium confidence
+]
+
+# OR logic: catches small defects OR reflective surfaces with medium confidence
+at_risk_detections = doleus_dataset.slice_by_conditions(
+    defect_conditions,
+    logical_operator="OR",
+    slice_name="at_risk_detections"
+)
+
+# AND logic: only small defects on reflective surfaces with medium confidence
+high_risk_combination = doleus_dataset.slice_by_conditions(
+    defect_conditions,
+    logical_operator="AND",
+    slice_name="high_risk_cases"
+)
+```
+
+> [!TIP] **When to Use What**:
+>
+> - Use `slice_by_value()` for single-condition filters
+> - Use `slice_by_conditions()` with `AND` when all conditions must be met (narrow down)
+> - Use `slice_by_conditions()` with `OR` when any condition suffices (cast wider net)
 
 ### **Checks**
 
@@ -359,11 +435,9 @@ Tests that compute metrics on slices:
 
 Checks become tests when you add pass/fail conditions (operator and value). Without these conditions, checks simply evaluate and report metric values.
 
-> [!NOTE]
-> **Prediction Format**: Doleus uses [torchmetrics](https://torchmetrics.readthedocs.io/) to compute metrics and expects the same prediction formats that torchmetrics functions require.
+> [!NOTE] > **Prediction Format**: Doleus uses [torchmetrics](https://torchmetrics.readthedocs.io/) to compute metrics and expects the same prediction formats that torchmetrics functions require.
 
-> [!IMPORTANT]
-> **Macro Averaging Default**: Doleus uses **macro averaging** as the default for classification metrics (Accuracy, Precision, Recall, F1) to avoid known bugs in torchmetrics' micro averaging implementation (see [GitHub issue #2280](https://github.com/Lightning-AI/torchmetrics/issues/2280)).
+> [!IMPORTANT] > **Macro Averaging Default**: Doleus uses **macro averaging** as the default for classification metrics (Accuracy, Precision, Recall, F1) to avoid known bugs in torchmetrics' micro averaging implementation (see [GitHub issue #2280](https://github.com/Lightning-AI/torchmetrics/issues/2280)).
 >
 > You can override this by setting `metric_parameters={"average": "micro"}` in your checks if needed.
 
