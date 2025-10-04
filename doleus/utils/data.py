@@ -17,6 +17,9 @@ OPERATOR_DICT = {
     "between": lambda x, y: (
         y[0] <= x <= y[1] if isinstance(y, (list, tuple)) and len(y) == 2 else False
     ),
+    "not_between": lambda x, y: (
+        not (y[0] <= x <= y[1]) if isinstance(y, (list, tuple)) and len(y) == 2 else False
+    ),
 }
 
 
