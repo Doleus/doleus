@@ -40,7 +40,7 @@ This approach surfaces hidden failure modes that aggregate metrics miss.
 ## Quick Start (Classification)
 
 ```sh
-pip install git+https://github.com/doleus/doleus.git
+pip install doleus
 ```
 
 ### Demo
