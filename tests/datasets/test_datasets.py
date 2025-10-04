@@ -283,3 +283,8 @@ def test_slice_or_operator(
         "confidence_score", "between", [0.8, 0.95], "mid_confidence"
     )
     assert len(confidence_range) == 6
+    
+    confidence_range_not = dataset.slice_by_value(
+        "confidence_score", "not_between", [0.8, 0.95], "not_mid_confidence"
+    )
+    assert len(confidence_range_not) == 4
