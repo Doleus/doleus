@@ -420,7 +420,8 @@ high_risk_combination = doleus_dataset.slice_by_conditions(
 )
 ```
 
-> [!TIP] **When to Use What**:
+> [!TIP]
+> **When to Use What**:
 >
 > - Use `slice_by_value()` for single-condition filters
 > - Use `slice_by_conditions()` with `AND` when all conditions must be met (narrow down)
@@ -435,9 +436,11 @@ Tests that compute metrics on slices:
 
 Checks become tests when you add pass/fail conditions (operator and value). Without these conditions, checks simply evaluate and report metric values.
 
-> [!NOTE] > **Prediction Format**: Doleus uses [torchmetrics](https://torchmetrics.readthedocs.io/) to compute metrics and expects the same prediction formats that torchmetrics functions require.
+> [!NOTE]
+> **Prediction Format**: Doleus uses [torchmetrics](https://torchmetrics.readthedocs.io/) to compute metrics and expects the same prediction formats that torchmetrics functions require.
 
-> [!IMPORTANT] > **Macro Averaging Default**: Doleus uses **macro averaging** as the default for classification metrics (Accuracy, Precision, Recall, F1) to avoid known bugs in torchmetrics' micro averaging implementation (see [GitHub issue #2280](https://github.com/Lightning-AI/torchmetrics/issues/2280)).
+> [!IMPORTANT]
+> **Macro Averaging Default**: Doleus uses **macro averaging** as the default for classification metrics (Accuracy, Precision, Recall, F1) to avoid known bugs in torchmetrics' micro averaging implementation (see [GitHub issue #2280](https://github.com/Lightning-AI/torchmetrics/issues/2280)).
 >
 > You can override this by setting `metric_parameters={"average": "micro"}` in your checks if needed.
 
