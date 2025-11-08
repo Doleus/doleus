@@ -34,6 +34,7 @@ class MetricCalculator:
             List of prediction annotations to evaluate against ground truths.
         metric_parameters : Optional[Dict[str, Any]], optional
             Optional parameters to pass directly to the corresponding torchmetrics function, by default None.
+            For ROC-based metrics (TPR_at_FPR, FPR_at_TPR), must include 'fpr_threshold' or 'tpr_threshold' respectively.
         target_class : Optional[Union[int, str]], optional
             Optional class ID or name to compute class-specific metrics.
         """
@@ -72,7 +73,8 @@ class MetricCalculator:
         groundtruths : List[Labels]
             List of ground truth label annotations.
         predictions : List[Labels]
-            List of predicted label annotations.
+            List of predicted label annotations. For ROC-based metrics (TPR_at_FPR, FPR_at_TPR),
+            predictions must contain scores/logits (not labels).
 
         Returns
         -------
@@ -82,6 +84,54 @@ class MetricCalculator:
         try:
             gt_tensor = torch.stack([ann.labels.squeeze() for ann in groundtruths])
 
+            # Special handling for ROC-based metrics
+            if self.metric in ["TPR_at_FPR", "FPR_at_TPR"]:
+                # Validate binary classification
+                if self.dataset.task != "binary":
+                    raise ValueError(
+                        f"{self.metric} only supports binary classification, "
+                        f"got task: {self.dataset.task}"
+                    )
+                
+                # Validate required threshold parameter
+                if self.metric == "TPR_at_FPR":
+                    if "fpr_threshold" not in self.metric_parameters:
+                        raise ValueError(
+                            f"{self.metric} requires 'fpr_threshold' parameter in metric_parameters"
+                        )
+                elif self.metric == "FPR_at_TPR":
+                    if "tpr_threshold" not in self.metric_parameters:
+                        raise ValueError(
+                            f"{self.metric} requires 'tpr_threshold' parameter in metric_parameters"
+                        )
+                
+                # ROC metrics require scores/logits, not labels
+                pred_list = []
+                for ann in predictions:
+                    if ann.scores is None:
+                        raise ValueError(
+                            f"{self.metric} requires prediction scores/logits, "
+                            f"but prediction annotation has no scores. "
+                            f"Please provide float predictions (scores/logits) instead of integer labels."
+                        )
+                    pred_list.append(ann.scores.squeeze())
+                
+                if not pred_list:
+                    raise ValueError("No predictions provided to compute the metric.")
+                pred_tensor = torch.stack(pred_list)
+                
+                metric_fn = METRIC_FUNCTIONS[self.metric]
+                metric_value = metric_fn(
+                    pred_tensor,
+                    gt_tensor,
+                    task=self.dataset.task,
+                    num_classes=self.dataset.num_classes,
+                    **self.metric_parameters,
+                )
+                
+                return float(metric_value)
+            
+            # Standard classification metrics
             pred_list = []
             for ann in predictions:
                 if ann.labels is not None:
@@ -215,6 +265,8 @@ def calculate_metric(
         List of prediction annotations to evaluate against ground truths.
     metric_parameters : Optional[Dict[str, Any]], optional
         Optional parameters to pass directly to the corresponding torchmetrics function, by default None.
+        For ROC-based metrics (TPR_at_FPR, FPR_at_TPR), must include 'fpr_threshold' or 'tpr_threshold' respectively.
+        ROC-based metrics only support binary classification and require prediction scores/logits (not labels).
     target_class : Optional[Union[int, str]], optional
         Optional class ID or name to compute class-specific metrics, by default None.
 
