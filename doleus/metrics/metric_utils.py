@@ -138,6 +138,7 @@ METRIC_FUNCTIONS = {
     "GeneralizedIntersectionOverUnion": torchmetrics.detection.GeneralizedIntersectionOverUnion,
     "IntersectionOverUnion": torchmetrics.detection.IntersectionOverUnion,
     "IoU": torchmetrics.detection.IntersectionOverUnion,
+    "Specificity": torchmetrics.functional.specificity,
 }
 
 METRIC_KEYS = {
