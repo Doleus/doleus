@@ -33,6 +33,10 @@ class TestBinaryClassificationMetrics:
         [0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.4], dtype=torch.float
     )
 
+    BINARY_PREDICTION_SCORES_STEPWISE = torch.tensor(
+        [0.9, 0.8, 0.7, 0.6, 0.55, 0.5, 0.4, 0.3, 0.2, 0.1], dtype=torch.float
+    )
+
     BINARY_PREDICTION_LOGITS_ALL_CORRECT = torch.tensor(
         [-2.2, 2.2, -1.4, 1.4, -3.0, 1.0, -0.8, 0.4, -2.2, 2.2], dtype=torch.float
     )
@@ -169,6 +173,296 @@ class TestBinaryClassificationMetrics:
     def test_precision_float_zero(self):
         result = self._calculate_precision(self.BINARY_PREDICTION_SCORES_ALL_INCORRECT)
         assert result == 0.0
+
+    def _calculate_tpr_at_fpr(self, predictions, fpr_threshold, model_id="test_model_tpr_at_fpr"):
+        self.dataset.prediction_store.add_predictions(
+            predictions, model_id=model_id, task=Task.BINARY.value
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(model_id=model_id, datapoint_number=i)
+            for i in range(len(self.dataset))
+        ]
+
+        return calculate_metric(
+            dataset=self.dataset,
+            metric="TPR_at_FPR",
+            predictions=predictions_list,
+            metric_parameters={"fpr_threshold": fpr_threshold},
+        )
+
+    def test_tpr_at_fpr_perfect_fpr_zero(self):
+        result = self._calculate_tpr_at_fpr(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT, fpr_threshold=0.0
+        )
+        # ROC curve starts at (FPR=0.0, TPR=0.0), so at FPR=0.0, TPR is 0.0
+        assert result == pytest.approx(0.0, abs=0.01)
+
+    def test_tpr_at_fpr_perfect_fpr_low(self):
+        result = self._calculate_tpr_at_fpr(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT, fpr_threshold=0.1
+        )
+        # With perfect predictions, TPR should be 1.0 at low FPR thresholds
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_tpr_at_fpr_perfect_fpr_high(self):
+        result = self._calculate_tpr_at_fpr(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT, fpr_threshold=0.5
+        )
+        # With perfect predictions, TPR should be 1.0 at high FPR thresholds
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_tpr_at_fpr_perfect_fpr_one(self):
+        result = self._calculate_tpr_at_fpr(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT, fpr_threshold=1.0
+        )
+        # With perfect predictions, TPR should be 1.0 at FPR=1.0
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_tpr_at_fpr_incorrect(self):
+        result = self._calculate_tpr_at_fpr(
+            self.BINARY_PREDICTION_SCORES_ALL_INCORRECT, fpr_threshold=0.5
+        )
+        # All positives rank below negatives, yielding no true positives before FPR exceeds 0.5
+        assert result == pytest.approx(0.0, abs=1e-6)
+
+    def test_tpr_at_fpr_mixed(self):
+        result = self._calculate_tpr_at_fpr(
+            self.BINARY_PREDICTION_SCORES_MIXED, fpr_threshold=0.5
+        )
+        # Threshold 0.5 still sits before any false positives, capturing 4/5 positives → TPR = 0.8
+        assert result == pytest.approx(0.8, abs=1e-6)
+
+    def test_tpr_at_fpr_stepwise_midpoint(self):
+        result = self._calculate_tpr_at_fpr(
+            self.BINARY_PREDICTION_SCORES_STEPWISE, fpr_threshold=0.41
+        )
+        # The ROC curve advances in 0.2 FPR increments; a threshold slightly above 0.4 captures 2/5 positives → TPR ≈ 0.4
+        assert result == pytest.approx(0.4, abs=1e-6)
+
+    def test_tpr_at_fpr_stepwise_low(self):
+        result = self._calculate_tpr_at_fpr(
+            self.BINARY_PREDICTION_SCORES_STEPWISE, fpr_threshold=0.21
+        )
+        # Allowing just over one false positive (FPR ≈ 0.2) yields exactly one true positive → TPR ≈ 0.2
+        assert result == pytest.approx(0.2, abs=1e-6)
+
+    def _calculate_fpr_at_tpr(self, predictions, tpr_threshold, model_id="test_model_fpr_at_tpr"):
+        self.dataset.prediction_store.add_predictions(
+            predictions, model_id=model_id, task=Task.BINARY.value
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(model_id=model_id, datapoint_number=i)
+            for i in range(len(self.dataset))
+        ]
+
+        return calculate_metric(
+            dataset=self.dataset,
+            metric="FPR_at_TPR",
+            predictions=predictions_list,
+            metric_parameters={"tpr_threshold": tpr_threshold},
+        )
+
+    def test_fpr_at_tpr_perfect_tpr_zero(self):
+        result = self._calculate_fpr_at_tpr(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT, tpr_threshold=0.0
+        )
+        # ROC curve starts at (FPR=0.0, TPR=0.0), so at TPR=0.0, FPR is 0.0
+        assert result == pytest.approx(0.0, abs=0.01)
+
+    def test_fpr_at_tpr_perfect_tpr_low(self):
+        result = self._calculate_fpr_at_tpr(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT, tpr_threshold=0.5
+        )
+        # Perfect ranking means no negatives are admitted before 50% recall → FPR = 0.0
+        assert result == pytest.approx(0.0, abs=1e-6)
+
+    def test_fpr_at_tpr_perfect_tpr_high(self):
+        result = self._calculate_fpr_at_tpr(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT, tpr_threshold=0.9
+        )
+        # Even at 90% recall the negatives remain untouched → FPR = 0.0
+        assert result == pytest.approx(0.0, abs=1e-6)
+
+    def test_fpr_at_tpr_perfect_tpr_one(self):
+        result = self._calculate_fpr_at_tpr(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT, tpr_threshold=1.0
+        )
+        # With perfect predictions, FPR should be 0.0 at TPR=1.0
+        assert result == pytest.approx(0.0, abs=0.01)
+
+    def test_fpr_at_tpr_incorrect(self):
+        result = self._calculate_fpr_at_tpr(
+            self.BINARY_PREDICTION_SCORES_ALL_INCORRECT, tpr_threshold=0.5
+        )
+        # Reaching TPR 0.5 requires accepting every negative first → FPR = 1.0
+        assert result == pytest.approx(1.0, abs=1e-6)
+
+    def test_fpr_at_tpr_mixed(self):
+        result = self._calculate_fpr_at_tpr(
+            self.BINARY_PREDICTION_SCORES_MIXED, tpr_threshold=0.5
+        )
+        # Half of the positives are recovered before any negative is accepted → FPR = 0.0
+        assert result == pytest.approx(0.0, abs=1e-6)
+
+    def test_fpr_at_tpr_stepwise_midpoint(self):
+        result = self._calculate_fpr_at_tpr(
+            self.BINARY_PREDICTION_SCORES_STEPWISE, tpr_threshold=0.6
+        )
+        # Achieving TPR 0.6 requires admitting exactly three of the five negatives → FPR = 0.6
+        assert result == pytest.approx(0.6, abs=1e-6)
+
+    def test_fpr_at_tpr_stepwise_low(self):
+        result = self._calculate_fpr_at_tpr(
+            self.BINARY_PREDICTION_SCORES_STEPWISE, tpr_threshold=0.2
+        )
+        # First non-zero TPR is attained while still keeping FPR at 0.2
+        assert result == pytest.approx(0.2, abs=1e-6)
+
+    def test_tpr_at_fpr_missing_fpr_threshold(self):
+        """Test that TPR_at_FPR raises RuntimeError when fpr_threshold is missing."""
+        self.dataset.prediction_store.add_predictions(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT,
+            model_id="test_missing_fpr_threshold",
+            task=Task.BINARY.value,
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(
+                model_id="test_missing_fpr_threshold", datapoint_number=i
+            )
+            for i in range(len(self.dataset))
+        ]
+
+        with pytest.raises(RuntimeError, match="TPR_at_FPR requires 'fpr_threshold' parameter"):
+            calculate_metric(
+                dataset=self.dataset,
+                metric="TPR_at_FPR",
+                predictions=predictions_list,
+                metric_parameters={},
+            )
+
+    def test_fpr_at_tpr_missing_tpr_threshold(self):
+        """Test that FPR_at_TPR raises RuntimeError when tpr_threshold is missing."""
+        self.dataset.prediction_store.add_predictions(
+            self.BINARY_PREDICTION_SCORES_ALL_CORRECT,
+            model_id="test_missing_tpr_threshold",
+            task=Task.BINARY.value,
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(
+                model_id="test_missing_tpr_threshold", datapoint_number=i
+            )
+            for i in range(len(self.dataset))
+        ]
+
+        with pytest.raises(RuntimeError, match="FPR_at_TPR requires 'tpr_threshold' parameter"):
+            calculate_metric(
+                dataset=self.dataset,
+                metric="FPR_at_TPR",
+                predictions=predictions_list,
+                metric_parameters={},
+            )
+
+    def test_tpr_at_fpr_wrong_task_type(self, doleus_multiclass_classification_dataset):
+        """Test that TPR_at_FPR raises RuntimeError for multiclass tasks."""
+        multiclass_dataset = doleus_multiclass_classification_dataset
+        multiclass_dataset.prediction_store.add_predictions(
+            torch.tensor([0.8, 0.2, 0.1] * 10).reshape(10, 3),
+            model_id="test_wrong_task",
+            task=Task.MULTICLASS.value,
+        )
+
+        predictions_list = [
+            multiclass_dataset.prediction_store.get(
+                model_id="test_wrong_task", datapoint_number=i
+            )
+            for i in range(len(multiclass_dataset))
+        ]
+
+        with pytest.raises(RuntimeError, match="TPR_at_FPR only supports binary classification"):
+            calculate_metric(
+                dataset=multiclass_dataset,
+                metric="TPR_at_FPR",
+                predictions=predictions_list,
+                metric_parameters={"fpr_threshold": 0.1},
+            )
+
+    def test_fpr_at_tpr_wrong_task_type(self, doleus_multiclass_classification_dataset):
+        """Test that FPR_at_TPR raises RuntimeError for multiclass tasks."""
+        multiclass_dataset = doleus_multiclass_classification_dataset
+        multiclass_dataset.prediction_store.add_predictions(
+            torch.tensor([0.8, 0.2, 0.1] * 10).reshape(10, 3),
+            model_id="test_wrong_task_fpr",
+            task=Task.MULTICLASS.value,
+        )
+
+        predictions_list = [
+            multiclass_dataset.prediction_store.get(
+                model_id="test_wrong_task_fpr", datapoint_number=i
+            )
+            for i in range(len(multiclass_dataset))
+        ]
+
+        with pytest.raises(RuntimeError, match="FPR_at_TPR only supports binary classification"):
+            calculate_metric(
+                dataset=multiclass_dataset,
+                metric="FPR_at_TPR",
+                predictions=predictions_list,
+                metric_parameters={"tpr_threshold": 0.1},
+            )
+
+    def test_tpr_at_fpr_missing_scores(self):
+        """Test that TPR_at_FPR raises RuntimeError when predictions contain labels instead of scores."""
+        self.dataset.prediction_store.add_predictions(
+            self.BINARY_PREDICTIONS_ALL_CORRECT,
+            model_id="test_missing_scores_tpr",
+            task=Task.BINARY.value,
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(
+                model_id="test_missing_scores_tpr", datapoint_number=i
+            )
+            for i in range(len(self.dataset))
+        ]
+
+        with pytest.raises(
+            RuntimeError, match="TPR_at_FPR requires prediction scores/logits"
+        ):
+            calculate_metric(
+                dataset=self.dataset,
+                metric="TPR_at_FPR",
+                predictions=predictions_list,
+                metric_parameters={"fpr_threshold": 0.1},
+            )
+
+    def test_fpr_at_tpr_missing_scores(self):
+        """Test that FPR_at_TPR raises RuntimeError when predictions contain labels instead of scores."""
+        self.dataset.prediction_store.add_predictions(
+            self.BINARY_PREDICTIONS_ALL_CORRECT,
+            model_id="test_missing_scores_fpr",
+            task=Task.BINARY.value,
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(
+                model_id="test_missing_scores_fpr", datapoint_number=i
+            )
+            for i in range(len(self.dataset))
+        ]
+
+        with pytest.raises(
+            RuntimeError, match="FPR_at_TPR requires prediction scores/logits"
+        ):
+            calculate_metric(
+                dataset=self.dataset,
+                metric="FPR_at_TPR",
+                predictions=predictions_list,
+                metric_parameters={"tpr_threshold": 0.1},
+            )
 
 
 class TestMulticlassClassificationMetrics:
