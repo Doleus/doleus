@@ -1,6 +1,6 @@
 [project]
 name = "doleus"
-version = "0.2.3"
+version = "0.2.4"
 description = "Doleus: Test Your Image-based AI Models on Data Slices"
 authors = [
     {name = "Hendrik Schulze Bröring"},

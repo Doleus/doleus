@@ -4,6 +4,33 @@
 
 # CHANGELOG
 
+## v0.2.4 (2025-12-16)
+
+### Features
+
+- Added AUPRC (Area Under Precision-Recall Curve) metric support
+  ([`a7ff4b8`](https://github.com/Doleus/doleus/commit/a7ff4b8))
+
+### Testing
+
+- Added AUPRC tests for binary, multiclass, and multilabel classification
+  ([`3cdf6b0`](https://github.com/Doleus/doleus/commit/3cdf6b0))
+
+### Bug Fixes
+
+- Replaced numpy with PyTorch in TPR/FPR functions for better performance
+  ([`c8013f4`](https://github.com/Doleus/doleus/commit/c8013f4))
+
+### Build
+
+- Removed torchvision from core dependencies
+  ([`1b09c27`](https://github.com/Doleus/doleus/commit/1b09c27))
+
+### Documentation
+
+- Added CPU-only PyTorch installation instructions
+  ([`0df9619`](https://github.com/Doleus/doleus/commit/0df9619))
+
 ## v0.2.2 (2025-10-04)
 
 ### Build
