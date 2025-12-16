@@ -464,6 +464,74 @@ class TestBinaryClassificationMetrics:
                 metric_parameters={"tpr_threshold": 0.1},
             )
 
+    def _calculate_auprc(self, predictions, model_id="test_model_auprc"):
+        self.dataset.prediction_store.add_predictions(
+            predictions, model_id=model_id, task=Task.BINARY.value
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(model_id=model_id, datapoint_number=i)
+            for i in range(len(self.dataset))
+        ]
+
+        return calculate_metric(
+            dataset=self.dataset, metric="AUPRC", predictions=predictions_list
+        )
+
+    def test_auprc_perfect_scores(self):
+        """Test AUPRC with perfect binary predictions."""
+        result = self._calculate_auprc(self.BINARY_PREDICTION_SCORES_ALL_CORRECT)
+        # Perfect predictions should yield AUPRC = 1.0
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_auprc_incorrect_scores(self):
+        """Test AUPRC with completely inverted binary predictions."""
+        result = self._calculate_auprc(self.BINARY_PREDICTION_SCORES_ALL_INCORRECT)
+        # Completely inverted predictions should yield AUPRC significantly less than 0.5
+        assert result < 0.5
+
+    def test_auprc_mixed_scores(self):
+        """Test AUPRC with mixed quality binary predictions."""
+        result = self._calculate_auprc(self.BINARY_PREDICTION_SCORES_MIXED)
+        # Mixed predictions should yield AUPRC between 0 and 1
+        assert 0.0 < result < 1.0
+
+    def test_auprc_logits_perfect(self):
+        """Test AUPRC with perfect logits."""
+        result = self._calculate_auprc(self.BINARY_PREDICTION_LOGITS_ALL_CORRECT)
+        # Perfect logits should yield AUPRC = 1.0
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_auprc_logits_incorrect(self):
+        """Test AUPRC with inverted logits."""
+        result = self._calculate_auprc(self.BINARY_PREDICTION_LOGITS_ALL_INCORRECT)
+        # Inverted logits should yield AUPRC significantly less than 0.5
+        assert result < 0.5
+
+    def test_auprc_missing_scores(self):
+        """Test that AUPRC raises RuntimeError when predictions contain labels instead of scores."""
+        self.dataset.prediction_store.add_predictions(
+            self.BINARY_PREDICTIONS_ALL_CORRECT,
+            model_id="test_missing_scores_auprc",
+            task=Task.BINARY.value,
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(
+                model_id="test_missing_scores_auprc", datapoint_number=i
+            )
+            for i in range(len(self.dataset))
+        ]
+
+        with pytest.raises(
+            RuntimeError, match="AUPRC requires prediction scores/logits"
+        ):
+            calculate_metric(
+                dataset=self.dataset,
+                metric="AUPRC",
+                predictions=predictions_list,
+            )
+
 
 class TestMulticlassClassificationMetrics:
 
@@ -682,6 +750,70 @@ class TestMulticlassClassificationMetrics:
             model_id="test_recall_false_negatives_scores",
         )
         assert result == pytest.approx(0.5)
+
+    def _calculate_auprc(self, predictions, model_id="test_model_auprc"):
+        self.dataset.prediction_store.add_predictions(
+            predictions, model_id=model_id, task=Task.MULTICLASS.value
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(model_id=model_id, datapoint_number=i)
+            for i in range(len(self.dataset))
+        ]
+
+        return calculate_metric(
+            dataset=self.dataset, metric="AUPRC", predictions=predictions_list
+        )
+
+    def test_auprc_perfect_scores(self):
+        """Test AUPRC with perfect multiclass predictions."""
+        result = self._calculate_auprc(self.MULTICLASS_PREDICTION_SCORES_ALL_CORRECT)
+        # Perfect predictions should yield AUPRC = 1.0
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_auprc_incorrect_scores(self):
+        """Test AUPRC with incorrect multiclass predictions."""
+        result = self._calculate_auprc(
+            self.MULTICLASS_PREDICTION_SCORES_ALL_INCORRECT
+        )
+        # Incorrect predictions should yield AUPRC significantly less than 0.5
+        assert result < 0.5
+
+    def test_auprc_mixed_scores(self):
+        """Test AUPRC with mixed quality multiclass predictions."""
+        result = self._calculate_auprc(self.MULTICLASS_PREDICTION_SCORES_MACRO_50)
+        # Mixed predictions should yield AUPRC between 0 and 1
+        assert 0.0 < result < 1.0
+
+    def test_auprc_logits_perfect(self):
+        """Test AUPRC with perfect multiclass logits."""
+        result = self._calculate_auprc(self.MULTICLASS_PREDICTION_LOGITS_ALL_CORRECT)
+        # Perfect logits should yield AUPRC = 1.0
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_auprc_missing_scores(self):
+        """Test that AUPRC raises RuntimeError when predictions contain labels instead of scores."""
+        self.dataset.prediction_store.add_predictions(
+            self.MULTICLASS_PREDICTIONS_ALL_CORRECT,
+            model_id="test_missing_scores_auprc_multiclass",
+            task=Task.MULTICLASS.value,
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(
+                model_id="test_missing_scores_auprc_multiclass", datapoint_number=i
+            )
+            for i in range(len(self.dataset))
+        ]
+
+        with pytest.raises(
+            RuntimeError, match="AUPRC requires prediction scores/logits"
+        ):
+            calculate_metric(
+                dataset=self.dataset,
+                metric="AUPRC",
+                predictions=predictions_list,
+            )
 
 
 class TestMultilabelClassificationMetrics:
@@ -958,6 +1090,72 @@ class TestMultilabelClassificationMetrics:
             self.MULTILABEL_LOGITS_F1_MIXED, model_id="test_f1_mixed_logits"
         )
         assert result == pytest.approx(0.83, abs=0.05)
+
+    def _calculate_auprc(self, predictions, model_id="test_model_auprc"):
+        self.dataset.prediction_store.add_predictions(
+            predictions, model_id=model_id, task=Task.MULTILABEL.value
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(model_id=model_id, datapoint_number=i)
+            for i in range(len(self.dataset))
+        ]
+
+        return calculate_metric(
+            dataset=self.dataset, metric="AUPRC", predictions=predictions_list
+        )
+
+    def test_auprc_perfect_scores(self):
+        """Test AUPRC with perfect multilabel predictions."""
+        result = self._calculate_auprc(self.MULTILABEL_PREDICTION_SCORES_ALL_CORRECT)
+        # Perfect predictions should yield AUPRC = 1.0
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_auprc_incorrect_scores(self):
+        """Test AUPRC with incorrect multilabel predictions."""
+        result = self._calculate_auprc(
+            self.MULTILABEL_PREDICTION_SCORES_ALL_INCORRECT
+        )
+        # Incorrect predictions should yield AUPRC significantly less than 0.5
+        assert result < 0.5
+
+    def test_auprc_mixed_scores(self):
+        """Test AUPRC with mixed quality multilabel predictions."""
+        result = self._calculate_auprc(self.MULTILABEL_PREDICTION_SCORES_MACRO_50)
+        # Mixed predictions should yield AUPRC between 0 and 1
+        assert 0.0 < result < 1.0
+
+    def test_auprc_logits_perfect(self):
+        """Test AUPRC with perfect multilabel logits."""
+        result = self._calculate_auprc(self.MULTILABEL_PREDICTION_LOGITS_ALL_CORRECT)
+        # Perfect logits should yield AUPRC = 1.0
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_auprc_missing_scores(self):
+        """Test that AUPRC raises RuntimeError when predictions contain labels instead of scores."""
+        # Use integer labels (not float) to ensure they're stored as labels, not scores
+        integer_labels = self.MULTILABEL_PREDICTIONS_ALL_CORRECT.int()
+        self.dataset.prediction_store.add_predictions(
+            integer_labels,
+            model_id="test_missing_scores_auprc_multilabel",
+            task=Task.MULTILABEL.value,
+        )
+
+        predictions_list = [
+            self.dataset.prediction_store.get(
+                model_id="test_missing_scores_auprc_multilabel", datapoint_number=i
+            )
+            for i in range(len(self.dataset))
+        ]
+
+        with pytest.raises(
+            RuntimeError, match="AUPRC requires prediction scores/logits"
+        ):
+            calculate_metric(
+                dataset=self.dataset,
+                metric="AUPRC",
+                predictions=predictions_list,
+            )
 
 
 def test_torchmetrics_micro_averaging_bug_still_exists():
