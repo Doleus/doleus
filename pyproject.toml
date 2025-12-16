@@ -1,6 +1,6 @@
 [project]
 name = "doleus"
-version = "0.2.2"
+version = "0.2.3"
 description = "Doleus: Test Your Image-based AI Models on Data Slices"
 authors = [
     {name = "Hendrik Schulze Bröring"},
@@ -10,7 +10,7 @@ license = { text = "Apache-2.0" }
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "torch>=2.0.0,<3.0.0",
+    "torch>=2.3.0,<3.0.0",
     "torchvision>=0.15.0,<1.0.0",
     "tqdm>=4.60.0,<5.0.0",
     "torchmetrics>=1.0.0,<2.0.0",
