@@ -129,6 +129,7 @@ METRIC_FUNCTIONS = {
     "HammingDistance": torchmetrics.functional.hamming_distance,
     "TPR_at_FPR": _tpr_at_fpr,
     "FPR_at_TPR": _fpr_at_tpr,
+    "AUPRC": torchmetrics.functional.average_precision,
     "mAP": torchmetrics.detection.MeanAveragePrecision,
     "mAP_small": torchmetrics.detection.MeanAveragePrecision,
     "mAP_medium": torchmetrics.detection.MeanAveragePrecision,
