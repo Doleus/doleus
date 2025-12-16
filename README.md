@@ -39,9 +39,22 @@ This approach surfaces hidden failure modes that aggregate metrics miss.
 
 ## Quick Start (Classification)
 
+### Standard Installation
+
 ```sh
 pip install doleus
 ```
+
+### Lightweight Installation (CPU-only PyTorch)
+
+For a smaller install footprint (~150MB vs ~2-3GB), install CPU-only PyTorch first:
+
+```sh
+pip install torch torchmetrics --index-url https://download.pytorch.org/whl/cpu
+pip install doleus
+```
+
+This prevents pip from installing the GPU-enabled PyTorch package, which includes large CUDA libraries that aren't needed for CPU-only workflows.
 
 ### Demo
 

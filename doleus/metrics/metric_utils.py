@@ -3,7 +3,6 @@
 
 from typing import Optional, Union
 
-import numpy as np
 import torch
 import torchmetrics
 
@@ -40,29 +39,30 @@ def _tpr_at_fpr(preds, target, task, num_classes, **kwargs):
         preds, target, **kwargs
     )
     
-    # Convert to numpy for easier indexing
-    fpr_np = fpr.cpu().numpy()
-    tpr_np = tpr.cpu().numpy()
+    # Ensure tensors are on CPU for indexing operations
+    fpr = fpr.cpu()
+    tpr = tpr.cpu()
     
     # Handle edge cases
-    if len(fpr_np) == 0:
+    if len(fpr) == 0:
         raise ValueError("ROC curve is empty")
     
     # If threshold is exactly at a point
-    exact_matches = np.where(fpr_np == fpr_threshold)[0]
+    exact_matches = (fpr == fpr_threshold).nonzero(as_tuple=True)[0]
     if len(exact_matches) > 0:
-        return float(tpr_np[exact_matches[0]])
+        return float(tpr[exact_matches[0]])
     
     # Find the largest FPR <= threshold (next smaller value)
-    valid_indices = np.where(fpr_np <= fpr_threshold)[0]
+    valid_mask = fpr <= fpr_threshold
+    valid_indices = valid_mask.nonzero(as_tuple=True)[0]
     
     if len(valid_indices) == 0:
         # All FPR values are greater than threshold, return TPR at first point
-        return float(tpr_np[0])
+        return float(tpr[0])
     
     # Get the point with largest FPR <= threshold
     idx_max = valid_indices[-1]
-    return float(tpr_np[idx_max])
+    return float(tpr[idx_max])
 
 
 def _fpr_at_tpr(preds, target, task, num_classes, **kwargs):
@@ -96,29 +96,30 @@ def _fpr_at_tpr(preds, target, task, num_classes, **kwargs):
         preds, target, **kwargs
     )
     
-    # Convert to numpy for easier indexing
-    fpr_np = fpr.cpu().numpy()
-    tpr_np = tpr.cpu().numpy()
+    # Ensure tensors are on CPU for indexing operations
+    fpr = fpr.cpu()
+    tpr = tpr.cpu()
     
     # Handle edge cases
-    if len(tpr_np) == 0:
+    if len(tpr) == 0:
         raise ValueError("ROC curve is empty")
     
     # If threshold is exactly at a point
-    exact_matches = np.where(tpr_np == tpr_threshold)[0]
+    exact_matches = (tpr == tpr_threshold).nonzero(as_tuple=True)[0]
     if len(exact_matches) > 0:
-        return float(fpr_np[exact_matches[0]])
+        return float(fpr[exact_matches[0]])
     
     # Find the smallest TPR >= threshold (next bigger value)
-    valid_indices = np.where(tpr_np >= tpr_threshold)[0]
+    valid_mask = tpr >= tpr_threshold
+    valid_indices = valid_mask.nonzero(as_tuple=True)[0]
     
     if len(valid_indices) == 0:
         # All TPR values are less than threshold, return FPR at last point
-        return float(fpr_np[-1])
+        return float(fpr[-1])
     
     # Get the point with smallest TPR >= threshold
     idx_min = valid_indices[0]
-    return float(fpr_np[idx_min])
+    return float(fpr[idx_min])
 
 
 METRIC_FUNCTIONS = {
@@ -129,6 +130,7 @@ METRIC_FUNCTIONS = {
     "HammingDistance": torchmetrics.functional.hamming_distance,
     "TPR_at_FPR": _tpr_at_fpr,
     "FPR_at_TPR": _fpr_at_tpr,
+    "AUPRC": torchmetrics.functional.average_precision,
     "mAP": torchmetrics.detection.MeanAveragePrecision,
     "mAP_small": torchmetrics.detection.MeanAveragePrecision,
     "mAP_medium": torchmetrics.detection.MeanAveragePrecision,

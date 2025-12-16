@@ -35,6 +35,7 @@ class MetricCalculator:
         metric_parameters : Optional[Dict[str, Any]], optional
             Optional parameters to pass directly to the corresponding torchmetrics function, by default None.
             For ROC-based metrics (TPR_at_FPR, FPR_at_TPR), must include 'fpr_threshold' or 'tpr_threshold' respectively.
+            AUPRC requires prediction scores/logits (not labels).
         target_class : Optional[Union[int, str]], optional
             Optional class ID or name to compute class-specific metrics.
         """
@@ -73,7 +74,7 @@ class MetricCalculator:
         groundtruths : List[Labels]
             List of ground truth label annotations.
         predictions : List[Labels]
-            List of predicted label annotations. For ROC-based metrics (TPR_at_FPR, FPR_at_TPR),
+            List of predicted label annotations. For ROC-based metrics (TPR_at_FPR, FPR_at_TPR) and AUPRC,
             predictions must contain scores/logits (not labels).
 
         Returns
@@ -130,6 +131,60 @@ class MetricCalculator:
                 )
                 
                 return float(metric_value)
+            
+            # Special handling for AUPRC (Average Precision)
+            if self.metric == "AUPRC":
+                # AUPRC requires scores/logits, not labels
+                pred_list = []
+                for ann in predictions:
+                    if ann.scores is None:
+                        raise ValueError(
+                            f"{self.metric} requires prediction scores/logits, "
+                            f"but prediction annotation has no scores. "
+                            f"Please provide float predictions (scores/logits) instead of integer labels."
+                        )
+                    pred_list.append(ann.scores.squeeze())
+                
+                if not pred_list:
+                    raise ValueError("No predictions provided to compute the metric.")
+                pred_tensor = torch.stack(pred_list)
+                
+                # Set macro averaging as the default
+                if "average" not in self.metric_parameters:
+                    self.metric_parameters["average"] = "macro"
+                
+                # If a specific class is requested, override averaging
+                if self.target_class_id is not None:
+                    self.metric_parameters["average"] = "none"
+                
+                metric_fn = METRIC_FUNCTIONS[self.metric]
+                
+                # Torchmetrics expects num_labels for multilabel tasks and num_classes for other tasks
+                if self.dataset.task == "multilabel":
+                    metric_value = metric_fn(
+                        pred_tensor,
+                        gt_tensor,
+                        task=self.dataset.task,
+                        num_labels=self.dataset.num_classes,
+                        **self.metric_parameters,
+                    )
+                else:
+                    metric_value = metric_fn(
+                        pred_tensor,
+                        gt_tensor,
+                        task=self.dataset.task,
+                        num_classes=self.dataset.num_classes,
+                        **self.metric_parameters,
+                    )
+                
+                if self.target_class_id is not None:
+                    metric_value = metric_value[self.target_class_id]
+                
+                return (
+                    float(metric_value.item())
+                    if hasattr(metric_value, "item")
+                    else float(metric_value)
+                )
             
             # Standard classification metrics
             pred_list = []
@@ -267,6 +322,7 @@ def calculate_metric(
         Optional parameters to pass directly to the corresponding torchmetrics function, by default None.
         For ROC-based metrics (TPR_at_FPR, FPR_at_TPR), must include 'fpr_threshold' or 'tpr_threshold' respectively.
         ROC-based metrics only support binary classification and require prediction scores/logits (not labels).
+        AUPRC supports all classification tasks and requires prediction scores/logits (not labels).
     target_class : Optional[Union[int, str]], optional
         Optional class ID or name to compute class-specific metrics, by default None.
 
